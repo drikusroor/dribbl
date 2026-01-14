@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { APITester } from "./APITester";
 import { HomeScreen } from "./screens/HomeScreen";
+import { LobbyScreen } from "./screens/LobbyScreen";
+import { GameScreen } from "./screens/GameScreen";
+import { GameOverScreen } from "./screens/GameOverScreen";
+import { Player, ChatMessage, DrawData } from "./types";
 import "./index.css";
 
 // WebSocket helper type
@@ -8,31 +12,6 @@ type WebSocketMessage = {
   type: string;
   data: any;
 };
-
-// Type definitions
-interface Player {
-  id: string;
-  name: string;
-  score: number;
-  hasDrawn: boolean;
-  avatar?: string;
-}
-
-interface ChatMessage {
-  playerId: string;
-  playerName: string;
-  message: string;
-  isCorrect: boolean;
-  isClose?: boolean;
-}
-
-interface DrawData {
-  x: number;
-  y: number;
-  color: string;
-  size: number;
-  type: string;
-}
 
 export function App() {
   const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -61,8 +40,6 @@ export function App() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(3);
-  const [copied, setCopied] = useState(false);
-  const [copiedCode, setCopiedCode] = useState(false);
   const [avatar, setAvatar] = useState<string>('');
   const [roundTime, setRoundTime] = useState(60);
   const [customWords, setCustomWords] = useState('');
@@ -352,18 +329,7 @@ export function App() {
 
 
 
-  const copyGameLink = () => {
-    const link = `${window.location.origin}?game=${currentGameId}`;
-    navigator.clipboard.writeText(link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
-  const copyGameCode = () => {
-    navigator.clipboard.writeText(currentGameId);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
-  };
 
   const leaveLobby = () => {
     setScreen('home');
@@ -387,18 +353,7 @@ export function App() {
     clearCanvas();
   };
 
-  const getWordPlaceholder = () => {
-    if (isDrawer) return '';
-    // For guessers, use the hint sent by the server
-    if (wordHint) return wordHint;
-    // Fallback: generate placeholder from currentWord if available
-    if (!currentWord) return '';
-    return currentWord
-      .split('')
-      .map(char => char === ' ' ? '   ' : '_ ')
-      .join('')
-      .trim();
-  };
+
 
   if (screen === 'home') {
     return (
@@ -417,286 +372,55 @@ export function App() {
 
   if (screen === 'lobby') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-red-400 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
-          <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Game Lobby</h2>
-          
-          <div className="mb-6 p-4 bg-purple-100 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Share this code with friends:</p>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="relative flex-1">
-                <code className="block text-2xl font-bold text-purple-600 bg-white px-4 py-2 pr-12 rounded">{currentGameId}</code>
-                <button
-                  onClick={copyGameCode}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-2xl hover:bg-purple-100 rounded transition"
-                  title="Copy code to clipboard"
-                >
-                  {copiedCode ? '✓' : '📋'}
-                </button>
-              </div>
-            </div>
-            <button
-              onClick={copyGameLink}
-              className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition text-sm flex items-center justify-center gap-2"
-            >
-              <span>🔗</span>
-              <span>{copied ? 'Link Copied!' : 'Copy Shareable Link'}</span>
-            </button>
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Number of rounds: {totalRounds}
-            </label>
-            <input
-              type="range"
-              min="1"
-              max="5"
-              value={totalRounds}
-              onChange={(e) => setTotalRounds(Number(e.target.value))}
-              onKeyDown={(e) => e.key === 'Enter' && players.length >= 2 && startGame()}
-              className="w-full"
-            />
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Time per round (seconds): {roundTime}
-            </label>
-            <input
-              type="range"
-              min="30"
-              max="180"
-              step="15"
-              value={roundTime}
-              onChange={(e) => setRoundTime(Number(e.target.value))}
-              className="w-full"
-            />
-          </div>
-
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Custom Words (optional)
-            </label>
-            <textarea
-              value={customWords}
-              onChange={(e) => setCustomWords(e.target.value)}
-              placeholder="Enter words separated by commas or new lines&#10;e.g., cat, dog, house&#10;or one per line"
-              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900 min-h-[80px]"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Leave empty to use default words
-            </p>
-          </div>
-
-          <div className="mb-6">
-            <h3 className="font-semibold text-gray-700 mb-3">
-              👥 Players ({players.length})
-            </h3>
-            <div className="space-y-2">
-              {players.map(p => (
-                <div key={p.id} className="bg-gray-100 px-4 py-2 rounded-lg flex items-center gap-3">
-                  {p.avatar ? (
-                    <img src={p.avatar} alt={p.name} className="w-8 h-8 border border-gray-300 rounded" />
-                  ) : (
-                    <div className="w-8 h-8 border border-gray-300 rounded bg-white flex items-center justify-center text-xs text-gray-400">
-                      ?
-                    </div>
-                  )}
-                  <span>{p.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <button
-            onClick={startGame}
-            disabled={players.length < 2}
-            className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 transition"
-          >
-            {players.length < 2 ? 'Waiting for players...' : 'Start Game'}
-          </button>
-
-          <button
-            onClick={leaveLobby}
-            className="w-full mt-3 bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
-          >
-            Leave Lobby
-          </button>
-        </div>
-      </div>
+      <LobbyScreen
+        currentGameId={currentGameId}
+        players={players}
+        totalRounds={totalRounds}
+        setTotalRounds={setTotalRounds}
+        roundTime={roundTime}
+        setRoundTime={setRoundTime}
+        customWords={customWords}
+        setCustomWords={setCustomWords}
+        startGame={startGame}
+        leaveLobby={leaveLobby}
+      />
     );
   }
 
   if (gameOver) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-red-400 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
-          <div className="text-center mb-8">
-            <div className="text-6xl mb-4">🏆</div>
-            <h2 className="text-3xl font-bold text-gray-800">Game Over!</h2>
-          </div>
-
-          <div className="space-y-3 mb-6">
-            {finalScores.map((p, i) => (
-              <div key={p.id} className={`flex items-center justify-between p-4 rounded-lg ${
-                i === 0 ? 'bg-yellow-100 border-2 border-yellow-400' :
-                i === 1 ? 'bg-gray-100 border-2 border-gray-400' :
-                i === 2 ? 'bg-orange-100 border-2 border-orange-400' :
-                'bg-gray-50'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl font-bold text-gray-600">#{i + 1}</span>
-                  {p.avatar && (
-                    <img src={p.avatar} alt={p.name} className="w-10 h-10 border-2 border-gray-300 rounded" />
-                  )}
-                  <span className="font-semibold">{p.name}</span>
-                </div>
-                <span className="text-xl font-bold text-purple-600">{p.score}</span>
-              </div>
-            ))}
-          </div>
-
-          <button
-            onClick={returnToLobby}
-            className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
-          >
-            Return to Lobby
-          </button>
-        </div>
-      </div>
+      <GameOverScreen
+        finalScores={finalScores}
+        returnToLobby={returnToLobby}
+      />
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-4 mb-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-800">Round {roundNumber}/{totalRounds}</h2>
-              <p className="text-gray-600">
-                {isDrawer ? `Draw: ${currentWord}` : 'Guess the drawing!'}
-              </p>
-              {!isDrawer && getWordPlaceholder() && (
-                <p className="text-sm text-gray-500 mt-1 font-mono tracking-widest">
-                  {getWordPlaceholder()}
-                </p>
-              )}
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-purple-600">{timeLeft}s</div>
-              <div className="text-sm text-gray-600">Time left</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-            <div className="lg:col-span-3">
-              <div className="bg-white border-2 border-gray-300 rounded-lg overflow-hidden">
-                {isDrawer && (
-                  <div className="bg-gray-100 p-2 flex items-center gap-2 border-b-2 border-gray-300">
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) => setColor(e.target.value)}
-                      className="w-10 h-10 border-2 border-gray-300 rounded cursor-pointer"
-                    />
-                    <input
-                      type="range"
-                      min="1"
-                      max="20"
-                      value={brushSize}
-                      onChange={(e) => setBrushSize(Number(e.target.value))}
-                      className="flex-1"
-                    />
-                    <span className="text-sm text-gray-600">{brushSize}px</span>
-                    <button
-                      onClick={handleClearCanvas}
-                      className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                )}
-                <canvas
-                  ref={canvasRef}
-                  width={800}
-                  height={600}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDrawing}
-                  className={`w-full bg-white ${isDrawer ? 'cursor-crosshair' : 'cursor-not-allowed'}`}
-                  style={{ touchAction: 'none' }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-semibold mb-3">👥 Players</h3>
-                <div className="space-y-2">
-                  {players.map(p => (
-                    <div key={p.id} className={`flex justify-between items-center p-2 rounded ${
-                      p.id === currentDrawer ? 'bg-purple-200' : 'bg-white'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        {p.avatar ? (
-                          <img src={p.avatar} alt={p.name} className="w-6 h-6 border border-gray-300 rounded" />
-                        ) : (
-                          <div className="w-6 h-6 border border-gray-300 rounded bg-gray-100 flex items-center justify-center text-xs text-gray-400">
-                            ?
-                          </div>
-                        )}
-                        <span className="font-medium">{p.name}</span>
-                      </div>
-                      <span className="text-purple-600 font-bold">{p.score}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-gray-50 rounded-lg p-4 flex flex-col" style={{ height: '300px' }}>
-                <h3 className="font-semibold mb-3">💬 Chat</h3>
-                <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-2 mb-3">
-                  {messages.map((msg, i) => (
-                    <div key={i} className={`text-sm p-2 rounded ${
-                      msg.isCorrect ? 'bg-green-200' : 
-                      msg.isClose ? 'bg-yellow-200' : 
-                      msg.playerId === 'system' ? 'bg-blue-100' : 'bg-white'
-                    }`}>
-                      <span className="font-semibold">{msg.playerName}:</span> {msg.message}
-                      {msg.isClose && <span className="text-xs ml-2 text-orange-600">(Close!)</span>}
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2 min-w-0">
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && sendMessage(e)}
-                    placeholder="Type your guess..."
-                    disabled={isDrawer}
-                    className="flex-1 min-w-0 px-3 py-2 border rounded focus:outline-none focus:border-purple-500 disabled:bg-gray-200 text-gray-900"
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={isDrawer}
-                    className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 flex-shrink-0"
-                  >
-                    Send
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <GameScreen
+      roundNumber={roundNumber}
+      totalRounds={totalRounds}
+      isDrawer={isDrawer}
+      currentWord={currentWord}
+      wordHint={wordHint}
+      timeLeft={timeLeft}
+      players={players}
+      currentDrawer={currentDrawer}
+      messages={messages}
+      chatInput={chatInput}
+      setChatInput={setChatInput}
+      sendMessage={sendMessage}
+      canvasRef={canvasRef}
+      chatContainerRef={chatContainerRef}
+      handleClearCanvas={handleClearCanvas}
+      startDrawing={startDrawing}
+      draw={draw}
+      stopDrawing={stopDrawing}
+      color={color}
+      setColor={setColor}
+      brushSize={brushSize}
+      setBrushSize={setBrushSize}
+    />
   );
 }
 
