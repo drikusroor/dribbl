@@ -24,6 +24,7 @@ interface ChatMessage {
   playerName: string;
   message: string;
   isCorrect: boolean;
+  isClose?: boolean;
 }
 
 interface DrawData {
@@ -56,13 +57,31 @@ export function App() {
   const [finalScores, setFinalScores] = useState<Player[]>([]);
   
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(3);
   const [copied, setCopied] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   // Store socketId in ref to access in event handlers
   const socketIdRef = useRef<string | null>(null);
+
+  // Check URL for game code and auto-fill
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const gameCode = urlParams.get('game');
+    if (gameCode) {
+      setGameId(gameCode);
+    }
+  }, []);
+
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -149,8 +168,8 @@ export function App() {
         }
 
         case 'chatMessage': {
-          const { playerId, playerName, message, isCorrect } = data;
-          setMessages(prev => [...prev, { playerId, playerName, message, isCorrect }]);
+          const { playerId, playerName, message, isCorrect, isClose } = data;
+          setMessages(prev => [...prev, { playerId, playerName, message, isCorrect, isClose }]);
           break;
         }
 
@@ -318,6 +337,21 @@ export function App() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const copyGameCode = () => {
+    navigator.clipboard.writeText(currentGameId);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
+
+  const getWordPlaceholder = () => {
+    if (!currentWord || isDrawer) return '';
+    return currentWord
+      .split('')
+      .map(char => char === ' ' ? '   ' : '_ ')
+      .join('')
+      .trim();
+  };
+
   if (screen === 'home') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-red-400 flex items-center justify-center p-4">
@@ -328,45 +362,64 @@ export function App() {
             <p className="text-gray-600">Draw, guess, and have fun!</p>
           </div>
 
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Enter your name"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && createGame()}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900"
-            />
+          <div className="space-y-6">
+            {/* Name input - always shown first */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Your Name
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={playerName}
+                onChange={(e) => setPlayerName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && playerName.trim()) {
+                    if (gameId.trim()) {
+                      joinGame();
+                    } else {
+                      createGame();
+                    }
+                  }
+                }}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900"
+                autoFocus
+              />
+            </div>
 
+            {/* Game code input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Game Code (optional)
+              </label>
+              <input
+                type="text"
+                placeholder="Leave empty to create a new game"
+                value={gameId}
+                onChange={(e) => setGameId(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && playerName.trim()) {
+                    if (gameId.trim()) {
+                      joinGame();
+                    } else {
+                      createGame();
+                    }
+                  }
+                }}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900"
+              />
+              {gameId && (
+                <p className="text-sm text-gray-500 mt-1">Press Enter to join this game</p>
+              )}
+            </div>
+
+            {/* Action button */}
             <button
-              onClick={createGame}
+              onClick={gameId.trim() ? joinGame : createGame}
               disabled={!playerName.trim()}
               className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 disabled:bg-gray-300 transition"
             >
-              Create New Game
-            </button>
-
-            <div className="flex items-center gap-2">
-              <div className="flex-1 border-t border-gray-300"></div>
-              <span className="text-gray-500 text-sm">OR</span>
-              <div className="flex-1 border-t border-gray-300"></div>
-            </div>
-
-            <input
-              type="text"
-              placeholder="Enter game code"
-              value={gameId}
-              onChange={(e) => setGameId(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && joinGame()}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900"
-            />
-
-            <button
-              onClick={joinGame}
-              disabled={!playerName.trim() || !gameId.trim()}
-              className="w-full bg-pink-600 text-white py-3 rounded-lg font-semibold hover:bg-pink-700 disabled:bg-gray-300 transition"
-            >
-              Join Game
+              {gameId.trim() ? 'Join Game' : 'Create New Game'}
             </button>
           </div>
         </div>
@@ -381,16 +434,26 @@ export function App() {
           <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Game Lobby</h2>
           
           <div className="mb-6 p-4 bg-purple-100 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Share this code:</p>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 text-2xl font-bold text-purple-600 bg-white px-4 py-2 rounded">{currentGameId}</code>
-              <button
-                onClick={copyGameLink}
-                className="p-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition"
-              >
-                {copied ? '✓' : '📋'}
-              </button>
+            <p className="text-sm text-gray-600 mb-2">Share this code with friends:</p>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="relative flex-1">
+                <code className="block text-2xl font-bold text-purple-600 bg-white px-4 py-2 pr-12 rounded">{currentGameId}</code>
+                <button
+                  onClick={copyGameCode}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-2xl hover:bg-purple-100 rounded transition"
+                  title="Copy code to clipboard"
+                >
+                  {copiedCode ? '✓' : '📋'}
+                </button>
+              </div>
             </div>
+            <button
+              onClick={copyGameLink}
+              className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition text-sm flex items-center justify-center gap-2"
+            >
+              <span>🔗</span>
+              <span>{copied ? 'Link Copied!' : 'Copy Shareable Link'}</span>
+            </button>
           </div>
 
           <div className="mb-6">
@@ -478,8 +541,13 @@ export function App() {
             <div>
               <h2 className="text-2xl font-bold text-gray-800">Round {roundNumber}/{totalRounds}</h2>
               <p className="text-gray-600">
-                {isDrawer ? `Draw: ${currentWord}` : 'Guess the drawing!'}
+                {isDrawer ? `Draw: ${currentWord}` : getWordPlaceholder() || 'Guess the drawing!'}
               </p>
+              {!isDrawer && getWordPlaceholder() && (
+                <p className="text-sm text-gray-500 mt-1 font-mono tracking-widest">
+                  {getWordPlaceholder()}
+                </p>
+              )}
             </div>
             <div className="text-right">
               <div className="text-3xl font-bold text-purple-600">{timeLeft}s</div>
@@ -549,12 +617,15 @@ export function App() {
 
               <div className="bg-gray-50 rounded-lg p-4 flex flex-col" style={{ height: '300px' }}>
                 <h3 className="font-semibold mb-3">💬 Chat</h3>
-                <div className="flex-1 overflow-y-auto space-y-2 mb-3">
+                <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-2 mb-3">
                   {messages.map((msg, i) => (
                     <div key={i} className={`text-sm p-2 rounded ${
-                      msg.isCorrect ? 'bg-green-200' : msg.playerId === 'system' ? 'bg-blue-100' : 'bg-white'
+                      msg.isCorrect ? 'bg-green-200' : 
+                      msg.isClose ? 'bg-yellow-200' : 
+                      msg.playerId === 'system' ? 'bg-blue-100' : 'bg-white'
                     }`}>
                       <span className="font-semibold">{msg.playerName}:</span> {msg.message}
+                      {msg.isClose && <span className="text-xs ml-2 text-orange-600">(Close!)</span>}
                     </div>
                   ))}
                 </div>
@@ -581,8 +652,6 @@ export function App() {
           </div>
         </div>
       </div>
-      <APITester />
-
     </div>
   );
 }

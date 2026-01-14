@@ -48,6 +48,49 @@ const POINTS_CORRECT = 100;
 // Helper Functions
 // ============================================================================
 
+// Calculate Levenshtein distance for "close guess" detection
+function levenshteinDistance(str1: string, str2: string): number {
+  const m = str1.length;
+  const n = str2.length;
+  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+
+  for (let i = 0; i <= m; i++) dp[i]![0] = i;
+  for (let j = 0; j <= n; j++) dp[0]![j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i]![j] = dp[i - 1]![j - 1]!;
+      } else {
+        dp[i]![j] = Math.min(
+          dp[i - 1]![j]! + 1,      // deletion
+          dp[i]![j - 1]! + 1,      // insertion
+          dp[i - 1]![j - 1]! + 1   // substitution
+        );
+      }
+    }
+  }
+  return dp[m]![n]!;
+}
+
+function isCloseGuess(guess: string, word: string): boolean {
+  const g = guess.toLowerCase().trim();
+  const w = word.toLowerCase().trim();
+  
+  // Already correct
+  if (g === w) return false;
+  
+  const distance = levenshteinDistance(g, w);
+  const maxLength = Math.max(g.length, w.length);
+  
+  // Close if edit distance is 1-2 for words of length > 3
+  // or the similarity ratio is > 0.7
+  if (maxLength > 3 && distance <= 2) return true;
+  if (distance / maxLength < 0.3) return true;
+  
+  return false;
+}
+
 function generateId(): string {
   return Math.random().toString(36).substr(2, 9);
 }
@@ -316,12 +359,14 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
         if (!player || socketId === game.currentDrawer) return;
 
         const isCorrect = guessMessage.toLowerCase().trim() === game.currentWord?.toLowerCase();
+        const isClose = !isCorrect && game.currentWord ? isCloseGuess(guessMessage, game.currentWord) : false;
 
         broadcast(gameId, 'chatMessage', {
           playerId: socketId,
           playerName: player.name,
           message: guessMessage,
-          isCorrect
+          isCorrect,
+          isClose
         });
 
         if (isCorrect && !game.guessedPlayers.has(socketId)) {
