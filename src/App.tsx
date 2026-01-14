@@ -47,6 +47,7 @@ export function App() {
   const [currentDrawer, setCurrentDrawer] = useState<string | null>(null);
   const [isDrawer, setIsDrawer] = useState(false);
   const [currentWord, setCurrentWord] = useState('');
+  const [wordHint, setWordHint] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [timeLeft, setTimeLeft] = useState(60);
@@ -142,6 +143,7 @@ export function App() {
           setTotalRounds(totalRounds);
           setTimeLeft(timeLeft);
           setCurrentWord('');
+          setWordHint('');
           setMessages([]);
           clearCanvas();
           break;
@@ -149,6 +151,11 @@ export function App() {
 
         case 'yourWord': {
           setCurrentWord(data);
+          break;
+        }
+
+        case 'hint': {
+          setWordHint(data);
           break;
         }
 
@@ -343,8 +350,34 @@ export function App() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  const leaveLobby = () => {
+    setScreen('home');
+    setCurrentGameId('');
+    setPlayers([]);
+    setGameStarted(false);
+    setGameOver(false);
+    setMessages([]);
+  };
+
+  const returnToLobby = () => {
+    setGameOver(false);
+    setGameStarted(false);
+    setScreen('lobby');
+    setMessages([]);
+    setCurrentWord('');
+    setWordHint('');
+    setIsDrawer(false);
+    setCurrentDrawer(null);
+    setRoundNumber(0);
+    clearCanvas();
+  };
+
   const getWordPlaceholder = () => {
-    if (!currentWord || isDrawer) return '';
+    if (isDrawer) return '';
+    // For guessers, use the hint sent by the server
+    if (wordHint) return wordHint;
+    // Fallback: generate placeholder from currentWord if available
+    if (!currentWord) return '';
     return currentWord
       .split('')
       .map(char => char === ' ' ? '   ' : '_ ')
@@ -491,6 +524,13 @@ export function App() {
           >
             {players.length < 2 ? 'Waiting for players...' : 'Start Game'}
           </button>
+
+          <button
+            onClick={leaveLobby}
+            className="w-full mt-3 bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
+          >
+            Leave Lobby
+          </button>
         </div>
       </div>
     );
@@ -523,10 +563,10 @@ export function App() {
           </div>
 
           <button
-            onClick={() => window.location.reload()}
+            onClick={returnToLobby}
             className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition"
           >
-            New Game
+            Return to Lobby
           </button>
         </div>
       </div>
@@ -541,7 +581,7 @@ export function App() {
             <div>
               <h2 className="text-2xl font-bold text-gray-800">Round {roundNumber}/{totalRounds}</h2>
               <p className="text-gray-600">
-                {isDrawer ? `Draw: ${currentWord}` : getWordPlaceholder() || 'Guess the drawing!'}
+                {isDrawer ? `Draw: ${currentWord}` : 'Guess the drawing!'}
               </p>
               {!isDrawer && getWordPlaceholder() && (
                 <p className="text-sm text-gray-500 mt-1 font-mono tracking-widest">
@@ -629,7 +669,7 @@ export function App() {
                     </div>
                   ))}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 min-w-0">
                   <input
                     type="text"
                     value={chatInput}
@@ -637,12 +677,12 @@ export function App() {
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage(e)}
                     placeholder="Type your guess..."
                     disabled={isDrawer}
-                    className="flex-1 px-3 py-2 border rounded focus:outline-none focus:border-purple-500 disabled:bg-gray-200 text-gray-900"
+                    className="flex-1 min-w-0 px-3 py-2 border rounded focus:outline-none focus:border-purple-500 disabled:bg-gray-200 text-gray-900"
                   />
                   <button
                     onClick={sendMessage}
                     disabled={isDrawer}
-                    className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300"
+                    className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:bg-gray-300 flex-shrink-0"
                   >
                     Send
                   </button>

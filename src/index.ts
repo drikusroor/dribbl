@@ -187,6 +187,14 @@ function startNewRound(game: Game) {
 
   sendTo(game.currentDrawer, 'yourWord', game.currentWord);
 
+  // Send hint to guessers (all players except drawer)
+  const wordHint = game.currentWord.split('').map(char => char === ' ' ? '   ' : '_ ').join('').trim();
+  game.players.forEach((_, playerId) => {
+    if (playerId !== game.currentDrawer) {
+      sendTo(playerId, 'hint', wordHint);
+    }
+  });
+
   startTimer(game);
 }
 
