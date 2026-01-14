@@ -8,7 +8,7 @@ interface GameOverScreenProps {
 export function GameOverScreen({ finalScores, returnToLobby }: GameOverScreenProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-red-400 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full">
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">🏆</div>
           <h2 className="text-3xl font-bold text-gray-800">Game Over!</h2>

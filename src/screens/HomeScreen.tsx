@@ -143,7 +143,7 @@ export function HomeScreen({
           </div>
         </div>
       )}
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full">
         <div className="text-center mb-8">
           <div className="w-16 h-16 mx-auto mb-4 text-6xl">✏️</div>
           <h1 className="text-4xl font-bold text-gray-800 mb-2">Dribbl</h1>
