@@ -43,15 +43,16 @@ export function LobbyScreen({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-red-400 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-4xl w-full">
-        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Game Lobby</h2>
+    <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
+      <div className="bg-gradient-to-br from-[#E8E8E8] via-white to-[#E8E8E8] rounded-3xl shadow-[0_0_60px_rgba(0,212,255,0.4),0_0_120px_rgba(182,32,224,0.2),inset_0_2px_20px_rgba(255,255,255,0.8)] p-10 max-w-4xl w-full border-4 border-transparent relative overflow-hidden backdrop-blur-sm" style={{borderImage: 'linear-gradient(135deg, rgba(0,212,255,0.5), rgba(182,32,224,0.5), rgba(255,47,146,0.5)) 1'}}>
+        <div className="absolute inset-0 bg-gradient-to-br from-[#00D4FF]/5 via-transparent to-[#B620E0]/5 pointer-events-none"></div>
+        <h2 className="text-4xl font-black text-center mb-8 bg-gradient-to-r from-[#00D4FF] via-[#B620E0] to-[#FF2F92] bg-clip-text text-transparent relative z-10" style={{textShadow: '0 0 30px rgba(0,212,255,0.3)'}}>Game Lobby</h2>
         
-        <div className="mb-6 p-4 bg-purple-100 rounded-lg">
-          <p className="text-sm text-gray-600 mb-2">Share this code with friends:</p>
-          <div className="flex items-center gap-2 mb-2">
+        <div className="mb-8 p-6 bg-gradient-to-br from-[#00D4FF]/10 via-[#B620E0]/10 to-transparent rounded-2xl border-2 border-[#00D4FF]/30 shadow-[0_0_20px_rgba(0,212,255,0.2)] relative z-10">
+          <p className="text-sm font-bold mb-3 bg-gradient-to-r from-[#B620E0] to-[#00D4FF] bg-clip-text text-transparent">Share this code with friends:</p>
+          <div className="flex items-center gap-2 mb-3">
             <div className="relative flex-1">
-              <code className="block text-2xl font-bold text-purple-600 bg-white px-4 py-2 pr-12 rounded">{currentGameId}</code>
+              <code className="block text-3xl font-black bg-gradient-to-r from-[#00D4FF] via-[#B620E0] to-[#FF2F92] bg-clip-text text-transparent bg-white/90 px-5 py-3 pr-14 rounded-xl border-2 border-[#00D4FF] shadow-[0_0_15px_rgba(0,212,255,0.3)]">{currentGameId}</code>
               <button
                 onClick={copyGameCode}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-2xl hover:bg-purple-100 rounded transition"
@@ -63,16 +64,16 @@ export function LobbyScreen({
           </div>
           <button
             onClick={copyGameLink}
-            className="w-full px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition text-sm flex items-center justify-center gap-2"
+            className="w-full px-5 py-3 bg-gradient-to-r from-[#B620E0] to-[#00D4FF] text-white rounded-xl hover:shadow-[0_0_25px_rgba(182,32,224,0.5)] transition-all text-sm font-bold flex items-center justify-center gap-2 border-2 border-[#00D4FF]/30"
           >
             <span>🔗</span>
             <span>{copied ? 'Link Copied!' : 'Copy Shareable Link'}</span>
           </button>
         </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Number of rounds: {totalRounds}
+        <div className="mb-6 relative z-10">
+          <label className="block text-sm font-bold mb-3 bg-gradient-to-r from-[#00D4FF] to-[#B620E0] bg-clip-text text-transparent">
+            Number of rounds: <span className="text-2xl">{totalRounds}</span>
           </label>
           <input
             type="range"
@@ -81,13 +82,13 @@ export function LobbyScreen({
             value={totalRounds}
             onChange={(e) => setTotalRounds(Number(e.target.value))}
             onKeyDown={(e) => e.key === 'Enter' && players.length >= 2 && startGame()}
-            className="w-full"
+            className="w-full h-3 bg-gradient-to-r from-[#00D4FF]/20 to-[#B620E0]/20 rounded-full appearance-none cursor-pointer accent-[#00D4FF] border-2 border-[#00D4FF]/30 shadow-[0_0_10px_rgba(0,212,255,0.2)]"
           />
         </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Time per round (seconds): {roundTime}
+        <div className="mb-6 relative z-10">
+          <label className="block text-sm font-bold mb-3 bg-gradient-to-r from-[#B620E0] to-[#FF2F92] bg-clip-text text-transparent">
+            Time per round (seconds): <span className="text-2xl">{roundTime}</span>
           </label>
           <input
             type="range"
@@ -96,40 +97,40 @@ export function LobbyScreen({
             step="15"
             value={roundTime}
             onChange={(e) => setRoundTime(Number(e.target.value))}
-            className="w-full"
+            className="w-full h-3 bg-gradient-to-r from-[#B620E0]/20 to-[#FF2F92]/20 rounded-full appearance-none cursor-pointer accent-[#B620E0] border-2 border-[#B620E0]/30 shadow-[0_0_10px_rgba(182,32,224,0.2)]"
           />
         </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="mb-8 relative z-10">
+          <label className="block text-sm font-bold mb-3 bg-gradient-to-r from-[#00FF88] to-[#00D4FF] bg-clip-text text-transparent">
             Custom Words (optional)
           </label>
           <textarea
             value={customWords}
             onChange={(e) => setCustomWords(e.target.value)}
             placeholder="Enter words separated by commas or new lines&#10;e.g., cat, dog, house&#10;or one per line"
-            className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900 min-h-[80px]"
+            className="w-full px-4 py-3 border-3 border-[#00FF88] rounded-xl focus:border-[#00D4FF] focus:shadow-[0_0_20px_rgba(0,255,136,0.4)] focus:outline-none bg-white/90 backdrop-blur-sm font-medium text-gray-900 min-h-[100px] transition-all"
           />
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs font-semibold bg-gradient-to-r from-[#00D4FF] to-[#B620E0] bg-clip-text text-transparent mt-2">
             Leave empty to use default words
           </p>
         </div>
 
-        <div className="mb-6">
-          <h3 className="font-semibold text-gray-700 mb-3">
+        <div className="mb-8 relative z-10">
+          <h3 className="font-black text-lg mb-4 bg-gradient-to-r from-[#FF2F92] to-[#00D4FF] bg-clip-text text-transparent">
             👥 Players ({players.length})
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {players.map(p => (
-              <div key={p.id} className="bg-gray-100 px-4 py-2 rounded-lg flex items-center gap-3">
+              <div key={p.id} className="bg-gradient-to-r from-[#00D4FF]/10 to-[#B620E0]/10 px-5 py-3 rounded-xl flex items-center gap-3 border-2 border-[#00D4FF]/20 shadow-[0_0_10px_rgba(0,212,255,0.1)] hover:shadow-[0_0_20px_rgba(0,212,255,0.3)] transition-all">
                 {p.avatar ? (
-                  <img src={p.avatar} alt={p.name} className="w-8 h-8 border border-gray-300 rounded" />
+                  <img src={p.avatar} alt={p.name} className="w-10 h-10 border-2 border-[#00D4FF] rounded-lg shadow-[0_0_10px_rgba(0,212,255,0.3)]" />
                 ) : (
-                  <div className="w-8 h-8 border border-gray-300 rounded bg-white flex items-center justify-center text-xs text-gray-400">
+                  <div className="w-10 h-10 border-2 border-[#B620E0] rounded-lg bg-gradient-to-br from-[#1A0033] to-[#2D004D] flex items-center justify-center text-sm text-[#00D4FF] shadow-[0_0_10px_rgba(182,32,224,0.3)]">
                     ?
                   </div>
                 )}
-                <span>{p.name}</span>
+                <span className="font-bold bg-gradient-to-r from-[#00D4FF] to-[#B620E0] bg-clip-text text-transparent">{p.name}</span>
               </div>
             ))}
           </div>
@@ -138,16 +139,18 @@ export function LobbyScreen({
         <button
           onClick={startGame}
           disabled={players.length < 2}
-          className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 transition"
+          className="w-full bg-gradient-to-r from-[#00FF88] via-[#00D4FF] to-[#B620E0] text-black py-4 rounded-xl font-black text-lg hover:shadow-[0_0_30px_rgba(0,255,136,0.6),0_0_60px_rgba(0,212,255,0.4)] disabled:from-gray-400 disabled:to-gray-500 disabled:text-gray-600 disabled:shadow-none transition-all border-2 border-white/30 relative overflow-hidden group mb-3"
         >
-          {players.length < 2 ? 'Waiting for players...' : 'Start Game'}
+          <span className="relative z-10">{players.length < 2 ? 'Waiting for players...' : 'Start Game'}</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
         </button>
 
         <button
           onClick={leaveLobby}
-          className="w-full mt-3 bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition"
+          className="w-full bg-gradient-to-r from-[#FF2F92] to-[#FF0055] text-white py-4 rounded-xl font-black text-lg hover:shadow-[0_0_30px_rgba(255,47,146,0.6)] transition-all border-2 border-[#FF2F92]/30 relative overflow-hidden group"
         >
-          Leave Lobby
+          <span className="relative z-10">Leave Lobby</span>
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
         </button>
       </div>
     </div>
