@@ -1,6 +1,7 @@
 import { serve, type ServerWebSocket } from "bun";
 import index from "./index.html";
 import WORDS from "./data/words";
+import levenshteinDistance from "./util/levenshtein";
 
 // ============================================================================
 // Game Types & State
@@ -11,6 +12,7 @@ interface Player {
   name: string;
   score: number;
   hasDrawn: boolean;
+  avatar?: string;
 }
 
 interface Game {
@@ -26,6 +28,8 @@ interface Game {
   timer: ReturnType<typeof setInterval> | null;
   guessedPlayers: Set<string>;
   drawingData: any[];
+  roundTime: number;
+  customWords: string[];
 }
 
 interface WebSocketData {
@@ -42,31 +46,6 @@ const POINTS_CORRECT = 100;
 // ============================================================================
 // Helper Functions
 // ============================================================================
-
-// Calculate Levenshtein distance for "close guess" detection
-function levenshteinDistance(str1: string, str2: string): number {
-  const m = str1.length;
-  const n = str2.length;
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
-
-  for (let i = 0; i <= m; i++) dp[i]![0] = i;
-  for (let j = 0; j <= n; j++) dp[0]![j] = j;
-
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (str1[i - 1] === str2[j - 1]) {
-        dp[i]![j] = dp[i - 1]![j - 1]!;
-      } else {
-        dp[i]![j] = Math.min(
-          dp[i - 1]![j]! + 1,      // deletion
-          dp[i]![j - 1]! + 1,      // insertion
-          dp[i - 1]![j - 1]! + 1   // substitution
-        );
-      }
-    }
-  }
-  return dp[m]![n]!;
-}
 
 function isCloseGuess(guess: string, word: string): boolean {
   const g = guess.toLowerCase().trim();
@@ -121,14 +100,15 @@ function sendTo(playerId: string, type: string, data: any) {
   }
 }
 
-function createGame(gameId: string, creatorId: string, creatorName: string, isPrivate: boolean): Game {
+function createGame(gameId: string, creatorId: string, creatorName: string, isPrivate: boolean, avatar?: string): Game {
   const game: Game = {
     id: gameId,
     players: new Map([[creatorId, {
       id: creatorId,
       name: creatorName,
       score: 0,
-      hasDrawn: false
+      hasDrawn: false,
+      avatar
     }]]),
     isPrivate,
     started: false,
@@ -139,7 +119,9 @@ function createGame(gameId: string, creatorId: string, creatorName: string, isPr
     timeLeft: ROUND_TIME,
     timer: null,
     guessedPlayers: new Set(),
-    drawingData: []
+    drawingData: [],
+    roundTime: ROUND_TIME,
+    customWords: []
   };
   games.set(gameId, game);
   return game;
@@ -170,8 +152,9 @@ function startNewRound(game: Game) {
   }
 
   game.currentDrawer = drawer.id;
-  game.currentWord = WORDS[Math.floor(Math.random() * WORDS.length)]!;
-  game.timeLeft = ROUND_TIME;
+  const wordList = game.customWords.length > 0 ? game.customWords : WORDS;
+  game.currentWord = wordList[Math.floor(Math.random() * wordList.length)]!;
+  game.timeLeft = game.roundTime;
 
   broadcast(game.id, 'roundStart', {
     drawerId: game.currentDrawer,
@@ -272,16 +255,16 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
 
     switch (type) {
       case 'createGame': {
-        const { playerName, isPrivate } = data;
+        const { playerName, isPrivate, avatar } = data;
         const gameId = generateId();
-        const game = createGame(gameId, socketId, playerName, isPrivate);
+        const game = createGame(gameId, socketId, playerName, isPrivate, avatar);
         ws.data.gameId = gameId;
         sendTo(socketId, 'gameCreated', { gameId, game: getGameState(game) });
         break;
       }
 
       case 'joinGame': {
-        const { gameId, playerName } = data;
+        const { gameId, playerName, avatar } = data;
         const game = games.get(gameId);
 
         if (!game) {
@@ -298,7 +281,8 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
           id: socketId,
           name: playerName,
           score: 0,
-          hasDrawn: false
+          hasDrawn: false,
+          avatar
         });
 
         ws.data.gameId = gameId;
@@ -310,13 +294,17 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
       }
 
       case 'startGame': {
-        const { gameId, totalRounds } = data;
+        const { gameId, totalRounds, roundTime, customWords } = data;
         const game = games.get(gameId);
         if (!game || game.players.size < 2) return;
 
         game.started = true;
         game.roundNumber = 1;
         game.totalRounds = totalRounds;
+        game.roundTime = roundTime || ROUND_TIME;
+        if (customWords && customWords.length > 0) {
+          game.customWords = customWords;
+        }
         game.players.forEach(p => {
           p.score = 0;
           p.hasDrawn = false;

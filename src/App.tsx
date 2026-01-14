@@ -17,6 +17,7 @@ interface Player {
   name: string;
   score: number;
   hasDrawn: boolean;
+  avatar?: string;
 }
 
 interface ChatMessage {
@@ -58,15 +59,29 @@ export function App() {
   const [finalScores, setFinalScores] = useState<Player[]>([]);
   
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const avatarCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isDrawingAvatar, setIsDrawingAvatar] = useState(false);
   const [color, setColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(3);
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [avatar, setAvatar] = useState<string>('');
+  const [roundTime, setRoundTime] = useState(60);
+  const [customWords, setCustomWords] = useState('');
+  const [showAvatarEditor, setShowAvatarEditor] = useState(false);
 
   // Store socketId in ref to access in event handlers
   const socketIdRef = useRef<string | null>(null);
+
+  // Load avatar from localStorage
+  useEffect(() => {
+    const savedAvatar = localStorage.getItem('playerAvatar');
+    if (savedAvatar) {
+      setAvatar(savedAvatar);
+    }
+  }, []);
 
   // Check URL for game code and auto-fill
   useEffect(() => {
@@ -249,19 +264,22 @@ export function App() {
 
   const createGame = () => {
     if (!playerName.trim() || !socket) return;
-    emit('createGame', { playerName, isPrivate: false });
+    emit('createGame', { playerName, isPrivate: false, avatar });
   };
 
   const joinGame = () => {
     if (!playerName.trim() || !gameId.trim() || !socket) return;
-    emit('joinGame', { gameId, playerName });
+    emit('joinGame', { gameId, playerName, avatar });
     setCurrentGameId(gameId);
     setScreen('lobby');
   };
 
   const startGame = () => {
     if (!socket) return;
-    emit('startGame', { gameId: currentGameId, totalRounds });
+    const customWordsList = customWords.trim() 
+      ? customWords.split(/[,\n]+/).map(w => w.trim()).filter(w => w.length > 0)
+      : [];
+    emit('startGame', { gameId: currentGameId, totalRounds, roundTime, customWords: customWordsList });
   };
 
   const clearCanvas = () => {
@@ -337,6 +355,60 @@ export function App() {
     setChatInput('');
   };
 
+  const clearAvatarCanvas = () => {
+    const canvas = avatarCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  };
+
+  const saveAvatar = () => {
+    const canvas = avatarCanvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL();
+    setAvatar(dataUrl);
+    localStorage.setItem('playerAvatar', dataUrl);
+    setShowAvatarEditor(false);
+  };
+
+  const startDrawingAvatar = (e: React.MouseEvent | React.TouchEvent) => {
+    setIsDrawingAvatar(true);
+    drawAvatar(e);
+  };
+
+  const stopDrawingAvatar = () => {
+    setIsDrawingAvatar(false);
+  };
+
+  const drawAvatar = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawingAvatar && e.type !== 'mousedown' && e.type !== 'touchstart') return;
+
+    const canvas = avatarCanvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+    const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = brushSize;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (e.type === 'mousedown' || e.type === 'touchstart') {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
+  };
+
   const copyGameLink = () => {
     const link = `${window.location.origin}?game=${currentGameId}`;
     navigator.clipboard.writeText(link);
@@ -388,6 +460,66 @@ export function App() {
   if (screen === 'home') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-red-400 flex items-center justify-center p-4">
+        {showAvatarEditor && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">Draw Your Avatar</h3>
+              <div className="mb-4">
+                <canvas
+                  ref={avatarCanvasRef}
+                  width={200}
+                  height={200}
+                  onMouseDown={startDrawingAvatar}
+                  onMouseMove={drawAvatar}
+                  onMouseUp={stopDrawingAvatar}
+                  onMouseLeave={stopDrawingAvatar}
+                  onTouchStart={startDrawingAvatar}
+                  onTouchMove={drawAvatar}
+                  onTouchEnd={stopDrawingAvatar}
+                  className="w-full border-2 border-gray-300 rounded cursor-crosshair bg-white"
+                  style={{ touchAction: 'none' }}
+                />
+              </div>
+              <div className="flex items-center gap-2 mb-4">
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="w-10 h-10 border-2 border-gray-300 rounded cursor-pointer"
+                />
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={brushSize}
+                  onChange={(e) => setBrushSize(Number(e.target.value))}
+                  className="flex-1"
+                />
+                <span className="text-sm text-gray-600">{brushSize}px</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={clearAvatarCanvas}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={saveAvatar}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={() => setShowAvatarEditor(false)}
+                  className="flex-1 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
           <div className="text-center mb-8">
             <div className="w-16 h-16 mx-auto mb-4 text-6xl">✏️</div>
@@ -396,6 +528,42 @@ export function App() {
           </div>
 
           <div className="space-y-6">
+            {/* Avatar section */}
+            <div className="flex items-center justify-center gap-4">
+              {avatar ? (
+                <img src={avatar} alt="Avatar" className="w-16 h-16 border-2 border-gray-300 rounded" />
+              ) : (
+                <div className="w-16 h-16 border-2 border-gray-300 rounded bg-gray-100 flex items-center justify-center text-gray-400">
+                  No Avatar
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  setShowAvatarEditor(true);
+                  setTimeout(() => {
+                    if (avatar) {
+                      const canvas = avatarCanvasRef.current;
+                      if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                          const img = new Image();
+                          img.onload = () => {
+                            ctx.drawImage(img, 0, 0);
+                          };
+                          img.src = avatar;
+                        }
+                      }
+                    } else {
+                      clearAvatarCanvas();
+                    }
+                  }, 0);
+                }}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-sm"
+              >
+                {avatar ? 'Edit Avatar' : 'Create Avatar'}
+              </button>
+            </div>
+
             {/* Name input - always shown first */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -505,13 +673,50 @@ export function App() {
           </div>
 
           <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Time per round (seconds): {roundTime}
+            </label>
+            <input
+              type="range"
+              min="30"
+              max="180"
+              step="15"
+              value={roundTime}
+              onChange={(e) => setRoundTime(Number(e.target.value))}
+              className="w-full"
+            />
+          </div>
+
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Custom Words (optional)
+            </label>
+            <textarea
+              value={customWords}
+              onChange={(e) => setCustomWords(e.target.value)}
+              placeholder="Enter words separated by commas or new lines&#10;e.g., cat, dog, house&#10;or one per line"
+              className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900 min-h-[80px]"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Leave empty to use default words
+            </p>
+          </div>
+
+          <div className="mb-6">
             <h3 className="font-semibold text-gray-700 mb-3">
               👥 Players ({players.length})
             </h3>
             <div className="space-y-2">
               {players.map(p => (
-                <div key={p.id} className="bg-gray-100 px-4 py-2 rounded-lg">
-                  {p.name}
+                <div key={p.id} className="bg-gray-100 px-4 py-2 rounded-lg flex items-center gap-3">
+                  {p.avatar ? (
+                    <img src={p.avatar} alt={p.name} className="w-8 h-8 border border-gray-300 rounded" />
+                  ) : (
+                    <div className="w-8 h-8 border border-gray-300 rounded bg-white flex items-center justify-center text-xs text-gray-400">
+                      ?
+                    </div>
+                  )}
+                  <span>{p.name}</span>
                 </div>
               ))}
             </div>
@@ -555,6 +760,9 @@ export function App() {
               }`}>
                 <div className="flex items-center gap-3">
                   <span className="text-2xl font-bold text-gray-600">#{i + 1}</span>
+                  {p.avatar && (
+                    <img src={p.avatar} alt={p.name} className="w-10 h-10 border-2 border-gray-300 rounded" />
+                  )}
                   <span className="font-semibold">{p.name}</span>
                 </div>
                 <span className="text-xl font-bold text-purple-600">{p.score}</span>
@@ -648,7 +856,16 @@ export function App() {
                     <div key={p.id} className={`flex justify-between items-center p-2 rounded ${
                       p.id === currentDrawer ? 'bg-purple-200' : 'bg-white'
                     }`}>
-                      <span className="font-medium">{p.name}</span>
+                      <div className="flex items-center gap-2">
+                        {p.avatar ? (
+                          <img src={p.avatar} alt={p.name} className="w-6 h-6 border border-gray-300 rounded" />
+                        ) : (
+                          <div className="w-6 h-6 border border-gray-300 rounded bg-gray-100 flex items-center justify-center text-xs text-gray-400">
+                            ?
+                          </div>
+                        )}
+                        <span className="font-medium">{p.name}</span>
+                      </div>
                       <span className="text-purple-600 font-bold">{p.score}</span>
                     </div>
                   ))}
