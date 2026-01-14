@@ -47,13 +47,24 @@ export function App() {
   // Store socketId in ref to access in event handlers
   const socketIdRef = useRef<string | null>(null);
 
-  // Load avatar from localStorage
+  // Load avatar and name from localStorage
   useEffect(() => {
     const savedAvatar = localStorage.getItem('playerAvatar');
     if (savedAvatar) {
       setAvatar(savedAvatar);
     }
+    const savedName = localStorage.getItem('playerName');
+    if (savedName) {
+      setPlayerName(savedName);
+    }
   }, []);
+
+  // Save name to localStorage when it changes
+  useEffect(() => {
+    if (playerName) {
+      localStorage.setItem('playerName', playerName);
+    }
+  }, [playerName]);
 
   // Check URL for game code and auto-fill
   useEffect(() => {
