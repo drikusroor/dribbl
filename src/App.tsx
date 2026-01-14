@@ -333,6 +333,7 @@ export function App() {
               placeholder="Enter your name"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && createGame()}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900"
             />
 
@@ -355,6 +356,7 @@ export function App() {
               placeholder="Enter game code"
               value={gameId}
               onChange={(e) => setGameId(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && joinGame()}
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900"
             />
 
@@ -400,6 +402,7 @@ export function App() {
               max="5"
               value={totalRounds}
               onChange={(e) => setTotalRounds(Number(e.target.value))}
+              onKeyDown={(e) => e.key === 'Enter' && players.length >= 2 && startGame()}
               className="w-full"
             />
           </div>
