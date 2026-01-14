@@ -362,32 +362,8 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
 
 const server = serve({
   routes: {
-    // Serve index.html for all unmatched routes.
     "/*": index,
-
-    "/api/hello": {
-      async GET(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "GET",
-        });
-      },
-      async PUT(req) {
-        return Response.json({
-          message: "Hello, world!",
-          method: "PUT",
-        });
-      },
-    },
-
-    "/api/hello/:name": async req => {
-      const name = req.params.name;
-      return Response.json({
-        message: `Hello, ${name}!`,
-      });
-    },
   },
-
   websocket: {
     open(ws: ServerWebSocket<WebSocketData>) {
       console.log('User connected:', ws.data.id);
@@ -408,29 +384,52 @@ const server = serve({
     // Echo console logs from the browser to the server
     console: true,
   },
-});
 
-// Handle WebSocket upgrade requests
-const originalFetch = server.fetch;
-server.fetch = function(req: Request) {
-  const url = new URL(req.url);
-  
-  if (url.pathname === '/ws' && req.headers.get('upgrade') === 'websocket') {
-    const socketId = generateId();
-    const upgraded = server.upgrade(req, {
-      data: {
-        id: socketId,
-        gameId: null,
-      } as WebSocketData,
-    });
-    
-    if (upgraded) {
-      return undefined as any;
+  async fetch(req, server) {
+    const url = new URL(req.url);
+
+    if (url.pathname === '/ws') {
+      const socketId = generateId();
+      const upgraded = server.upgrade(req, {
+        data: {
+          id: socketId,
+          gameId: null,
+        } as WebSocketData,
+      });
+
+      if (upgraded) {
+        return undefined;
+      }
+      return new Response('WebSocket upgrade failed', { status: 500 });
     }
-    return new Response('WebSocket upgrade failed', { status: 500 });
-  }
-  
-  return originalFetch.call(server, req);
-};
+
+    if (url.pathname === "/api/hello") {
+      if (req.method === "GET") {
+        return Response.json({
+          message: "Hello, world!",
+          method: "GET",
+        });
+      }
+      if (req.method === "PUT") {
+        return Response.json({
+          message: "Hello, world!",
+          method: "PUT",
+        });
+      }
+    }
+
+    const nameMatch = url.pathname.match(/^\/api\/hello\/([^\/]+)$/);
+    if (nameMatch) {
+      const name = nameMatch[1];
+      return Response.json({
+        message: `Hello, ${name}!`,
+      });
+    }
+
+    return new Response(index, {
+      headers: { "Content-Type": "text/html" },
+    });
+  },
+});
 
 console.log(`🚀 Server running at ${server.url}`);
