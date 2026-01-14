@@ -1,5 +1,6 @@
 import { serve, type ServerWebSocket } from "bun";
 import index from "./index.html";
+import WORDS from "./data/words";
 
 // ============================================================================
 // Game Types & State
@@ -34,12 +35,6 @@ interface WebSocketData {
 
 const games = new Map<string, Game>();
 const clients = new Map<string, ServerWebSocket<WebSocketData>>();
-
-const WORDS = [
-  'watermelon', 'house', 'cat', 'tree', 'car', 'pizza', 'guitar',
-  'mountain', 'bicycle', 'flower', 'rocket', 'elephant', 'beach', 'clock', 'rainbow',
-  'phone', 'book', 'computer', 'sun', 'moon', 'star', 'cloud', 'fish', 'bird'
-];
 
 const ROUND_TIME = 60;
 const POINTS_CORRECT = 100;
