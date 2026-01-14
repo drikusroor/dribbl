@@ -44,7 +44,7 @@ export function LobbyScreen({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-400 via-pink-400 to-red-400 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-2xl w-full">
         <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Game Lobby</h2>
         
         <div className="mb-6 p-4 bg-purple-100 rounded-lg">
