@@ -333,7 +333,7 @@ export function App() {
               placeholder="Enter your name"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900"
             />
 
             <button
@@ -355,7 +355,7 @@ export function App() {
               placeholder="Enter game code"
               value={gameId}
               onChange={(e) => setGameId(e.target.value)}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none text-gray-900"
             />
 
             <button
@@ -562,7 +562,7 @@ export function App() {
                     onKeyPress={(e) => e.key === 'Enter' && sendMessage(e)}
                     placeholder="Type your guess..."
                     disabled={isDrawer}
-                    className="flex-1 px-3 py-2 border rounded focus:outline-none focus:border-purple-500 disabled:bg-gray-200"
+                    className="flex-1 px-3 py-2 border rounded focus:outline-none focus:border-purple-500 disabled:bg-gray-200 text-gray-900"
                   />
                   <button
                     onClick={sendMessage}
