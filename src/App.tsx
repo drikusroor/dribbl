@@ -107,6 +107,7 @@ export function App() {
         case 'gameStarted': {
           const game = data;
           setGameStarted(true);
+          setScreen('game');
           setPlayers(game.players);
           setRoundNumber(game.roundNumber);
           setTotalRounds(game.totalRounds);
