@@ -62,8 +62,11 @@ export function HomeScreen({
     const rect = canvas.getBoundingClientRect();
     const clientX = 'clientX' in e ? (e as React.MouseEvent).clientX : (e as React.TouchEvent).touches?.[0]?.clientX ?? 0;
     const clientY = 'clientY' in e ? (e as React.MouseEvent).clientY : (e as React.TouchEvent).touches?.[0]?.clientY ?? 0;
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
+    // Scale coordinates to match canvas internal dimensions
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
     
     const ctx = canvas.getContext('2d');
     if (!ctx) return;

@@ -299,8 +299,11 @@ export function App() {
     const rect = canvas.getBoundingClientRect();
     const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
     const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
-    const x = clientX - rect.left;
-    const y = clientY - rect.top;
+    // Scale coordinates to match canvas internal dimensions
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (clientX - rect.left) * scaleX;
+    const y = (clientY - rect.top) * scaleY;
 
     const data: DrawData = { x, y, color, size: brushSize, type: e.type };
     drawOnCanvas(data);
