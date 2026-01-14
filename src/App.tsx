@@ -5,169 +5,243 @@ import "./index.css";
 import logo from "./logo.svg";
 import reactLogo from "./react.svg";
 
-// export function App() {
-//   return (
-//     <div className="max-w-7xl mx-auto p-8 text-center relative z-10">
-//       <div className="flex justify-center items-center gap-8 mb-8">
-//         <img
-//           src={logo}
-//           alt="Bun Logo"
-//           className="h-24 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#646cffaa] scale-120"
-//         />
-//         <img
-//           src={reactLogo}
-//           alt="React Logo"
-//           className="h-24 p-6 transition-all duration-300 hover:drop-shadow-[0_0_2em_#61dafbaa] animate-[spin_20s_linear_infinite]"
-//         />
-//       </div>
+// WebSocket helper type
+type WebSocketMessage = {
+  type: string;
+  data: any;
+};
 
-//       <h1 className="text-5xl font-bold my-4 leading-tight">Bun + React</h1>
-//       <p>
-//         Edit <code className="bg-[#1a1a1a] px-2 py-1 rounded font-mono">src/App.tsx</code> and save to test HMR
-//       </p>
-//     </div>
-//   );
-// }
+// Type definitions
+interface Player {
+  id: string;
+  name: string;
+  score: number;
+  hasDrawn: boolean;
+}
+
+interface ChatMessage {
+  playerId: string;
+  playerName: string;
+  message: string;
+  isCorrect: boolean;
+}
+
+interface DrawData {
+  x: number;
+  y: number;
+  color: string;
+  size: number;
+  type: string;
+}
 
 export function App() {
-  const [socket, setSocket] = useState(null);
+  const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [socketId, setSocketId] = useState<string | null>(null);
   const [screen, setScreen] = useState('home');
   const [playerName, setPlayerName] = useState('');
   const [gameId, setGameId] = useState('');
   const [currentGameId, setCurrentGameId] = useState('');
   
-  const [players, setPlayers] = useState([]);
-  const [currentDrawer, setCurrentDrawer] = useState(null);
+  const [players, setPlayers] = useState<Player[]>([]);
+  const [currentDrawer, setCurrentDrawer] = useState<string | null>(null);
   const [isDrawer, setIsDrawer] = useState(false);
   const [currentWord, setCurrentWord] = useState('');
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [timeLeft, setTimeLeft] = useState(60);
   const [roundNumber, setRoundNumber] = useState(0);
   const [totalRounds, setTotalRounds] = useState(1);
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const [finalScores, setFinalScores] = useState([]);
+  const [finalScores, setFinalScores] = useState<Player[]>([]);
   
-  const canvasRef = useRef(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [color, setColor] = useState('#000000');
   const [brushSize, setBrushSize] = useState(3);
   const [copied, setCopied] = useState(false);
 
+  // Store socketId in ref to access in event handlers
+  const socketIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    const newSocket = io();
-    setSocket(newSocket);
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const newSocket = new WebSocket(wsUrl);
+    
+    newSocket.onopen = () => {
+      console.log('WebSocket connected');
+      setSocket(newSocket);
+    };
 
-    newSocket.on('gameCreated', ({ gameId, game }) => {
-      setCurrentGameId(gameId);
-      setPlayers(game.players);
-      setScreen('lobby');
-    });
+    newSocket.onmessage = (event) => {
+      const { type, data }: WebSocketMessage = JSON.parse(event.data);
+      
+      switch (type) {
+        case 'gameCreated': {
+          const { gameId, game } = data;
+          setCurrentGameId(gameId);
+          setPlayers(game.players);
+          // Find our player ID from the players list (we're the only one at creation)
+          if (game.players.length > 0) {
+            const myId = game.players[0].id;
+            setSocketId(myId);
+            socketIdRef.current = myId;
+          }
+          setScreen('lobby');
+          break;
+        }
 
-    newSocket.on('playerJoined', ({ player, game }) => {
-      setPlayers(game.players);
-    });
+        case 'playerJoined': {
+          const { player, game } = data;
+          setPlayers(game.players);
+          // If we just joined, find our ID (we're the last player)
+          if (!socketIdRef.current && game.players.length > 0) {
+            const myId = game.players[game.players.length - 1].id;
+            setSocketId(myId);
+            socketIdRef.current = myId;
+          }
+          break;
+        }
 
-    newSocket.on('gameStarted', (game) => {
-      setGameStarted(true);
-      setPlayers(game.players);
-      setRoundNumber(game.roundNumber);
-      setTotalRounds(game.totalRounds);
-      clearCanvas();
-    });
+        case 'gameStarted': {
+          const game = data;
+          setGameStarted(true);
+          setPlayers(game.players);
+          setRoundNumber(game.roundNumber);
+          setTotalRounds(game.totalRounds);
+          clearCanvas();
+          break;
+        }
 
-    newSocket.on('roundStart', ({ drawerId, roundNumber, totalRounds, timeLeft }) => {
-      setCurrentDrawer(drawerId);
-      setIsDrawer(drawerId === newSocket.id);
-      setRoundNumber(roundNumber);
-      setTotalRounds(totalRounds);
-      setTimeLeft(timeLeft);
-      setCurrentWord('');
-      setMessages([]);
-      clearCanvas();
-    });
+        case 'roundStart': {
+          const { drawerId, roundNumber, totalRounds, timeLeft } = data;
+          setCurrentDrawer(drawerId);
+          setIsDrawer(drawerId === socketIdRef.current);
+          setRoundNumber(roundNumber);
+          setTotalRounds(totalRounds);
+          setTimeLeft(timeLeft);
+          setCurrentWord('');
+          setMessages([]);
+          clearCanvas();
+          break;
+        }
 
-    newSocket.on('yourWord', (word) => {
-      setCurrentWord(word);
-    });
+        case 'yourWord': {
+          setCurrentWord(data);
+          break;
+        }
 
-    newSocket.on('timeUpdate', (time) => {
-      setTimeLeft(time);
-    });
+        case 'timeUpdate': {
+          setTimeLeft(data);
+          break;
+        }
 
-    newSocket.on('drawing', (data) => {
-      drawOnCanvas(data);
-    });
+        case 'drawing': {
+          drawOnCanvas(data);
+          break;
+        }
 
-    newSocket.on('canvasCleared', () => {
-      clearCanvas();
-    });
+        case 'canvasCleared': {
+          clearCanvas();
+          break;
+        }
 
-    newSocket.on('chatMessage', ({ playerId, playerName, message, isCorrect }) => {
-      setMessages(prev => [...prev, { playerId, playerName, message, isCorrect }]);
-    });
+        case 'chatMessage': {
+          const { playerId, playerName, message, isCorrect } = data;
+          setMessages(prev => [...prev, { playerId, playerName, message, isCorrect }]);
+          break;
+        }
 
-    newSocket.on('correctGuess', ({ playerId, playerName, points }) => {
-      setMessages(prev => [...prev, {
-        playerId: 'system',
-        playerName: 'System',
-        message: `${playerName} guessed correctly! (+${points} points)`,
-        isCorrect: true
-      }]);
-    });
+        case 'correctGuess': {
+          const { playerId, playerName, points } = data;
+          setMessages(prev => [...prev, {
+            playerId: 'system',
+            playerName: 'System',
+            message: `${playerName} guessed correctly! (+${points} points)`,
+            isCorrect: true
+          }]);
+          break;
+        }
 
-    newSocket.on('wordReveal', (word) => {
-      setMessages(prev => [...prev, {
-        playerId: 'system',
-        playerName: 'System',
-        message: `The word was: ${word}`,
-        isCorrect: false
-      }]);
-    });
+        case 'wordReveal': {
+          const word = data;
+          setMessages(prev => [...prev, {
+            playerId: 'system',
+            playerName: 'System',
+            message: `The word was: ${word}`,
+            isCorrect: false
+          }]);
+          break;
+        }
 
-    newSocket.on('gameState', (game) => {
-      setPlayers(game.players);
-    });
+        case 'gameState': {
+          const game = data;
+          setPlayers(game.players);
+          break;
+        }
 
-    newSocket.on('gameOver', (scores) => {
-      setFinalScores(scores);
-      setGameOver(true);
-      setGameStarted(false);
-    });
+        case 'gameOver': {
+          const scores = data;
+          setFinalScores(scores);
+          setGameOver(true);
+          setGameStarted(false);
+          break;
+        }
 
-    newSocket.on('playerLeft', ({ game }) => {
-      setPlayers(game.players);
-    });
+        case 'playerLeft': {
+          const { game } = data;
+          setPlayers(game.players);
+          break;
+        }
 
-    newSocket.on('error', (message) => {
-      alert(message);
-    });
+        case 'error': {
+          alert(data);
+          break;
+        }
+      }
+    };
+
+    newSocket.onclose = () => {
+      console.log('WebSocket disconnected');
+    };
+
+    newSocket.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
 
     return () => newSocket.close();
   }, []);
 
+  // Helper function to send messages
+  const emit = (type: string, data: any) => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type, data }));
+    }
+  };
+
   const createGame = () => {
     if (!playerName.trim() || !socket) return;
-    socket.emit('createGame', { playerName, isPrivate: false });
+    emit('createGame', { playerName, isPrivate: false });
   };
 
   const joinGame = () => {
     if (!playerName.trim() || !gameId.trim() || !socket) return;
-    socket.emit('joinGame', { gameId, playerName });
+    emit('joinGame', { gameId, playerName });
     setCurrentGameId(gameId);
     setScreen('lobby');
   };
 
   const startGame = () => {
     if (!socket) return;
-    socket.emit('startGame', { gameId: currentGameId, totalRounds });
+    emit('startGame', { gameId: currentGameId, totalRounds });
   };
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   };
@@ -175,10 +249,10 @@ export function App() {
   const handleClearCanvas = () => {
     if (!socket || !isDrawer) return;
     clearCanvas();
-    socket.emit('clearCanvas', { gameId: currentGameId });
+    emit('clearCanvas', { gameId: currentGameId });
   };
 
-  const startDrawing = (e) => {
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawer) return;
     setIsDrawing(true);
     draw(e);
@@ -188,28 +262,32 @@ export function App() {
     setIsDrawing(false);
   };
 
-  const draw = (e) => {
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
     if (!isDrawing && e.type !== 'mousedown' && e.type !== 'touchstart') return;
     if (!isDrawer) return;
 
     const canvas = canvasRef.current;
+    if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX || e.touches?.[0]?.clientX) - rect.left;
-    const y = (e.clientY || e.touches?.[0]?.clientY) - rect.top;
+    const clientX = 'clientX' in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+    const clientY = 'clientY' in e ? e.clientY : e.touches?.[0]?.clientY ?? 0;
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
 
-    const data = { x, y, color, size: brushSize, type: e.type };
+    const data: DrawData = { x, y, color, size: brushSize, type: e.type };
     drawOnCanvas(data);
     
     if (socket) {
-      socket.emit('draw', { gameId: currentGameId, data });
+      emit('draw', { gameId: currentGameId, data });
     }
   };
 
-  const drawOnCanvas = (data) => {
+  const drawOnCanvas = (data: DrawData) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     ctx.strokeStyle = data.color;
     ctx.lineWidth = data.size;
     ctx.lineCap = 'round';
@@ -224,11 +302,11 @@ export function App() {
     }
   };
 
-  const sendMessage = (e) => {
+  const sendMessage = (e: React.FormEvent | React.KeyboardEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !socket) return;
     
-    socket.emit('guess', { gameId: currentGameId, message: chatInput });
+    emit('guess', { gameId: currentGameId, message: chatInput });
     setChatInput('');
   };
 
