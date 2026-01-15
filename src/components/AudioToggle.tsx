@@ -8,11 +8,11 @@ export const AudioToggle: React.FC = () => {
   const { isMuted, toggleMute, playClick } = useSounds();
 
   const handleToggle = () => {
+    const willBeUnmuted = isMuted; // Save current state before toggling
     toggleMute();
-    // Play a click sound to demonstrate the change (will play if turning on)
-    if (isMuted) {
-      // Small delay to let the state update
-      setTimeout(() => playClick(), 50);
+    if (willBeUnmuted) {
+      // Use setTimeout with 0 to defer to next tick (more semantically correct than 50ms)
+      setTimeout(() => playClick(), 0);
     }
   };
 
