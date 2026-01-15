@@ -6,6 +6,19 @@
  * Micro Edition - ~1KB
  */
 
+// Fix 1: Singleton AudioContext to prevent memory leaks
+let audioContext: AudioContext | null = null;
+
+const getAudioContext = (): AudioContext => {
+  if (!audioContext) {
+    if (typeof AudioContext === 'undefined' && typeof webkitAudioContext === 'undefined') {
+      throw new Error('Web Audio API not supported');
+    }
+    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+  }
+  return audioContext;
+};
+
 export const zzfx = (
   volume = 1,
   randomness = 0.05,
@@ -24,20 +37,32 @@ export const zzfx = (
   sampleRateScale = 1
 ): void => {
   // Check if audio is supported
-  if (typeof AudioContext === 'undefined' && typeof webkitAudioContext === 'undefined') {
+  try {
+    var context = getAudioContext();
+  } catch (error) {
     console.warn('Web Audio API not supported');
     return;
   }
 
-  // Create audio context
-  const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-
   // Calculate duration
   const duration = attack + sustain + release;
-  const length = duration * sampleRate * sampleRateScale;
 
-  // Create buffer
-  const buffer = audioContext.createBuffer(1, length, sampleRate);
+  // Fix 4: Validate duration
+  if (duration <= 0) {
+    console.warn('Invalid sound duration');
+    return;
+  }
+
+  const length = Math.max(1, Math.floor(duration * sampleRate * sampleRateScale));
+
+  // Fix 4: Error handling for buffer creation
+  let buffer: AudioBuffer;
+  try {
+    buffer = context.createBuffer(1, length, sampleRate);
+  } catch (error) {
+    console.error('Failed to create audio buffer:', error);
+    return;
+  }
   const data = buffer.getChannelData(0);
 
   // Generate waveform
@@ -107,14 +132,38 @@ export const zzfx = (
   }
 
   // Play sound
-  const source = audioContext.createBufferSource();
+  const source = context.createBufferSource();
   source.buffer = buffer;
-  source.connect(audioContext.destination);
+  source.connect(context.destination);
   source.start();
+
+  // Fix 2: Cleanup after playback to prevent memory leaks
+  source.onended = () => {
+    source.disconnect();
+  };
 };
 
+// Fix 3: Proper type definition for ZzFX parameters
+type ZzFXParams = [
+  volume?: number,
+  randomness?: number,
+  frequency?: number,
+  attack?: number,
+  sustain?: number,
+  release?: number,
+  shape?: number,
+  shapeCurve?: number,
+  vibrato?: number,
+  vibratoFrequency?: number,
+  decay?: number,
+  minFrequency?: number,
+  noise?: number,
+  sampleRate?: number,
+  sampleRateScale?: number
+];
+
 // Sound bank - each sound is an array of zzfx parameters
-export const SOUNDS = {
+export const SOUNDS: Record<string, ZzFXParams> = {
   // UI Sounds
   click: [0.2, 0, 330, 0, 0.03, 0, 0, 0, 0, 0, 0, 0, 0, 44100, 1],
   typing: [0.15, 0, 440, 0, 0.05, 0, 0, 0, 0, 0, 0, 0, 0, 44100, 1],
@@ -141,6 +190,6 @@ export const SOUNDS = {
 };
 
 // Helper to play a sound from the bank
-export const playSound = (soundParams: number[]): void => {
-  zzfx(...soundParams as [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number]);
+export const playSound = (soundParams: ZzFXParams): void => {
+  zzfx(...soundParams);
 };
