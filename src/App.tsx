@@ -5,6 +5,8 @@ import { LobbyScreen } from "./screens/LobbyScreen";
 import { GameScreen } from "./screens/GameScreen";
 import { GameOverScreen } from "./screens/GameOverScreen";
 import { Player, ChatMessage, DrawData } from "./types";
+import { SoundProvider } from './contexts/SoundContext';
+import { AudioToggle } from './components/AudioToggle';
 import "./index.css";
 
 // WebSocket helper type
@@ -369,72 +371,70 @@ export function App() {
 
 
 
-  if (screen === 'home') {
-    return (
-      <HomeScreen
-        playerName={playerName}
-        setPlayerName={setPlayerName}
-        gameId={gameId}
-        setGameId={setGameId}
-        joinGame={gameId.trim() ? joinGame : createGame}
-        createGame={createGame}
-        avatar={avatar}
-        setAvatar={setAvatar}
-      />
-    );
-  }
-
-  if (screen === 'lobby') {
-    return (
-      <LobbyScreen
-        currentGameId={currentGameId}
-        players={players}
-        totalRounds={totalRounds}
-        setTotalRounds={setTotalRounds}
-        roundTime={roundTime}
-        setRoundTime={setRoundTime}
-        customWords={customWords}
-        setCustomWords={setCustomWords}
-        startGame={startGame}
-        leaveLobby={leaveLobby}
-      />
-    );
-  }
-
-  if (gameOver) {
-    return (
-      <GameOverScreen
-        finalScores={finalScores}
-        returnToLobby={returnToLobby}
-      />
-    );
-  }
-
   return (
-    <GameScreen
-      roundNumber={roundNumber}
-      totalRounds={totalRounds}
-      isDrawer={isDrawer}
-      currentWord={currentWord}
-      wordHint={wordHint}
-      timeLeft={timeLeft}
-      players={players}
-      currentDrawer={currentDrawer}
-      messages={messages}
-      chatInput={chatInput}
-      setChatInput={setChatInput}
-      sendMessage={sendMessage}
-      canvasRef={canvasRef}
-      chatContainerRef={chatContainerRef}
-      handleClearCanvas={handleClearCanvas}
-      startDrawing={startDrawing}
-      draw={draw}
-      stopDrawing={stopDrawing}
-      color={color}
-      setColor={setColor}
-      brushSize={brushSize}
-      setBrushSize={setBrushSize}
-    />
+    <SoundProvider>
+      <div className="min-h-screen bg-gradient-to-br from-[#00D4FF] via-[#B620E0] to-[#FF2F92]">
+        <AudioToggle />
+        {screen === 'home' && (
+          <HomeScreen
+            playerName={playerName}
+            setPlayerName={setPlayerName}
+            gameId={gameId}
+            setGameId={setGameId}
+            joinGame={gameId.trim() ? joinGame : createGame}
+            createGame={createGame}
+            avatar={avatar}
+            setAvatar={setAvatar}
+          />
+        )}
+        {screen === 'lobby' && (
+          <LobbyScreen
+            currentGameId={currentGameId}
+            players={players}
+            totalRounds={totalRounds}
+            setTotalRounds={setTotalRounds}
+            roundTime={roundTime}
+            setRoundTime={setRoundTime}
+            customWords={customWords}
+            setCustomWords={setCustomWords}
+            startGame={startGame}
+            leaveLobby={leaveLobby}
+          />
+        )}
+        {gameOver && (
+          <GameOverScreen
+            finalScores={finalScores}
+            returnToLobby={returnToLobby}
+          />
+        )}
+        {!gameOver && screen === 'game' && (
+          <GameScreen
+            roundNumber={roundNumber}
+            totalRounds={totalRounds}
+            isDrawer={isDrawer}
+            currentWord={currentWord}
+            wordHint={wordHint}
+            timeLeft={timeLeft}
+            players={players}
+            currentDrawer={currentDrawer}
+            messages={messages}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            sendMessage={sendMessage}
+            canvasRef={canvasRef}
+            chatContainerRef={chatContainerRef}
+            handleClearCanvas={handleClearCanvas}
+            startDrawing={startDrawing}
+            draw={draw}
+            stopDrawing={stopDrawing}
+            color={color}
+            setColor={setColor}
+            brushSize={brushSize}
+            setBrushSize={setBrushSize}
+          />
+        )}
+      </div>
+    </SoundProvider>
   );
 }
 
