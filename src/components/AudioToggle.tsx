@@ -3,16 +3,17 @@
 import React from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { useSounds } from '../contexts/SoundContext';
+import { playSound, SOUNDS } from '../lib/zzfx';
 
 export const AudioToggle: React.FC = () => {
-  const { isMuted, toggleMute, playClick } = useSounds();
+  const { isMuted, toggleMute } = useSounds();
 
   const handleToggle = () => {
-    const willBeUnmuted = isMuted; // Save current state before toggling
+    const willBeUnmuted = isMuted;
     toggleMute();
     if (willBeUnmuted) {
-      // Use setTimeout with 0 to defer to next tick (more semantically correct than 50ms)
-      setTimeout(() => playClick(), 0);
+      // Play sound directly, bypassing mute check for toggle demonstration
+      playSound(SOUNDS.click);
     }
   };
 
