@@ -25,13 +25,15 @@ const SoundContext = createContext<SoundContextType | undefined>(undefined);
 const STORAGE_KEY = 'dribbl-audio-muted';
 
 export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isMuted, setIsMuted] = useState<boolean>(() => {
-    // Load from localStorage
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === 'true';
-  });
+  const [isMuted, setIsMuted] = useState<boolean>(false);
 
   const lastDrawSoundTime = useRef<number>(0);
+
+  // Load from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    setIsMuted(stored === 'true');
+  }, []);
 
   // Persist to localStorage
   useEffect(() => {
