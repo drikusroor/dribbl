@@ -5,7 +5,7 @@ import { LobbyScreen } from "./screens/LobbyScreen";
 import { GameScreen } from "./screens/GameScreen";
 import { GameOverScreen } from "./screens/GameOverScreen";
 import { Player, ChatMessage, DrawData } from "./types";
-import { SoundProvider } from './contexts/SoundContext';
+import { SoundProvider, useSounds } from './contexts/SoundContext';
 import { AudioToggle } from './components/AudioToggle';
 import "./index.css";
 
@@ -15,14 +15,15 @@ type WebSocketMessage = {
   data: any;
 };
 
-export function App() {
+function AppContent() {
+  const sounds = useSounds();
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [socketId, setSocketId] = useState<string | null>(null);
   const [screen, setScreen] = useState('home');
   const [playerName, setPlayerName] = useState('');
   const [gameId, setGameId] = useState('');
   const [currentGameId, setCurrentGameId] = useState('');
-  
+
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentDrawer, setCurrentDrawer] = useState<string | null>(null);
   const [isDrawer, setIsDrawer] = useState(false);
@@ -36,7 +37,7 @@ export function App() {
   const [gameStarted, setGameStarted] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [finalScores, setFinalScores] = useState<Player[]>([]);
-  
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -84,6 +85,13 @@ export function App() {
     }
   }, [messages]);
 
+  // Play time warning sound when 10 seconds left
+  useEffect(() => {
+    if (timeLeft === 10) {
+      sounds.playTimeWarning();
+    }
+  }, [timeLeft, sounds]);
+
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -121,6 +129,7 @@ export function App() {
             setSocketId(myId);
             socketIdRef.current = myId;
           }
+          sounds.playPlayerJoined();
           break;
         }
 
@@ -146,6 +155,7 @@ export function App() {
           setWordHint('');
           setMessages([]);
           clearCanvas();
+          sounds.playRoundStart();
           break;
         }
 
@@ -177,6 +187,11 @@ export function App() {
         case 'chatMessage': {
           const { playerId, playerName, message, isCorrect, isClose } = data;
           setMessages(prev => [...prev, { playerId, playerName, message, isCorrect, isClose }]);
+          if (isClose) {
+            sounds.playClose();
+          } else if (playerId === socketIdRef.current && gameStarted && !isDrawer) {
+            sounds.playWrong();
+          }
           break;
         }
 
@@ -188,6 +203,7 @@ export function App() {
             message: `${playerName} guessed correctly! (+${points} points)`,
             isCorrect: true
           }]);
+          sounds.playCorrect();
           break;
         }
 
@@ -199,6 +215,7 @@ export function App() {
             message: `The word was: ${word}`,
             isCorrect: false
           }]);
+          sounds.playWordReveal();
           break;
         }
 
@@ -213,6 +230,7 @@ export function App() {
           setFinalScores(scores);
           setGameOver(true);
           setGameStarted(false);
+          sounds.playGameOver();
           break;
         }
 
@@ -372,68 +390,74 @@ export function App() {
 
 
   return (
+    <div className="min-h-screen bg-gradient-to-br from-[#00D4FF] via-[#B620E0] to-[#FF2F92]">
+      <AudioToggle />
+      {screen === 'home' && (
+        <HomeScreen
+          playerName={playerName}
+          setPlayerName={setPlayerName}
+          gameId={gameId}
+          setGameId={setGameId}
+          joinGame={gameId.trim() ? joinGame : createGame}
+          createGame={createGame}
+          avatar={avatar}
+          setAvatar={setAvatar}
+        />
+      )}
+      {screen === 'lobby' && (
+        <LobbyScreen
+          currentGameId={currentGameId}
+          players={players}
+          totalRounds={totalRounds}
+          setTotalRounds={setTotalRounds}
+          roundTime={roundTime}
+          setRoundTime={setRoundTime}
+          customWords={customWords}
+          setCustomWords={setCustomWords}
+          startGame={startGame}
+          leaveLobby={leaveLobby}
+        />
+      )}
+      {gameOver && (
+        <GameOverScreen
+          finalScores={finalScores}
+          returnToLobby={returnToLobby}
+        />
+      )}
+      {!gameOver && screen === 'game' && (
+        <GameScreen
+          roundNumber={roundNumber}
+          totalRounds={totalRounds}
+          isDrawer={isDrawer}
+          currentWord={currentWord}
+          wordHint={wordHint}
+          timeLeft={timeLeft}
+          players={players}
+          currentDrawer={currentDrawer}
+          messages={messages}
+          chatInput={chatInput}
+          setChatInput={setChatInput}
+          sendMessage={sendMessage}
+          canvasRef={canvasRef}
+          chatContainerRef={chatContainerRef}
+          handleClearCanvas={handleClearCanvas}
+          startDrawing={startDrawing}
+          draw={draw}
+          stopDrawing={stopDrawing}
+          color={color}
+          setColor={setColor}
+          brushSize={brushSize}
+          setBrushSize={setBrushSize}
+        />
+      )}
+    </div>
+  );
+}
+
+export function App() {
+  return (
     <SoundProvider>
-      <div className="min-h-screen bg-gradient-to-br from-[#00D4FF] via-[#B620E0] to-[#FF2F92]">
-        <AudioToggle />
-        {screen === 'home' && (
-          <HomeScreen
-            playerName={playerName}
-            setPlayerName={setPlayerName}
-            gameId={gameId}
-            setGameId={setGameId}
-            joinGame={gameId.trim() ? joinGame : createGame}
-            createGame={createGame}
-            avatar={avatar}
-            setAvatar={setAvatar}
-          />
-        )}
-        {screen === 'lobby' && (
-          <LobbyScreen
-            currentGameId={currentGameId}
-            players={players}
-            totalRounds={totalRounds}
-            setTotalRounds={setTotalRounds}
-            roundTime={roundTime}
-            setRoundTime={setRoundTime}
-            customWords={customWords}
-            setCustomWords={setCustomWords}
-            startGame={startGame}
-            leaveLobby={leaveLobby}
-          />
-        )}
-        {gameOver && (
-          <GameOverScreen
-            finalScores={finalScores}
-            returnToLobby={returnToLobby}
-          />
-        )}
-        {!gameOver && screen === 'game' && (
-          <GameScreen
-            roundNumber={roundNumber}
-            totalRounds={totalRounds}
-            isDrawer={isDrawer}
-            currentWord={currentWord}
-            wordHint={wordHint}
-            timeLeft={timeLeft}
-            players={players}
-            currentDrawer={currentDrawer}
-            messages={messages}
-            chatInput={chatInput}
-            setChatInput={setChatInput}
-            sendMessage={sendMessage}
-            canvasRef={canvasRef}
-            chatContainerRef={chatContainerRef}
-            handleClearCanvas={handleClearCanvas}
-            startDrawing={startDrawing}
-            draw={draw}
-            stopDrawing={stopDrawing}
-            color={color}
-            setColor={setColor}
-            brushSize={brushSize}
-            setBrushSize={setBrushSize}
-          />
-        )}
-      </div>
+      <AppContent />
     </SoundProvider>
   );
 }

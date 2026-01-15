@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Player, ChatMessage, DrawData } from "../types";
+import { useSounds } from '../contexts/SoundContext';
 
 interface GameScreenProps {
   roundNumber: number;
@@ -50,7 +51,28 @@ export function GameScreen({
   brushSize,
   setBrushSize,
 }: GameScreenProps) {
-  
+  const sounds = useSounds();
+
+  // Wrapper for draw that adds sound
+  const handleDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    sounds.playDraw();
+    draw(e);
+  };
+
+  // Wrapper for clear canvas that adds sound
+  const handleClear = () => {
+    sounds.playClear();
+    handleClearCanvas();
+  };
+
+  // Wrapper for send message that adds typing sound
+  const handleSendMessage = (e: React.FormEvent | React.KeyboardEvent) => {
+    if ('key' in e && e.key === 'Enter') {
+      sounds.playTyping();
+    }
+    sendMessage(e);
+  };
+
   const getWordPlaceholder = () => {
     if (isDrawer) return '';
     // For guessers, use the hint sent by the server
@@ -108,7 +130,7 @@ export function GameScreen({
                     />
                     <span className="text-sm font-bold bg-gradient-to-r from-[#00D4FF] to-[#B620E0] bg-clip-text text-transparent min-w-[50px]">{brushSize}px</span>
                     <button
-                      onClick={handleClearCanvas}
+                      onClick={handleClear}
                       className="px-4 py-2 bg-gradient-to-r from-[#FF2F92] to-[#FF0055] text-white rounded-lg hover:shadow-[0_0_20px_rgba(255,47,146,0.6)] font-bold border-2 border-[#FF2F92]/30 transition-all"
                     >
                       Clear
@@ -120,11 +142,11 @@ export function GameScreen({
                   width={800}
                   height={600}
                   onMouseDown={startDrawing}
-                  onMouseMove={draw}
+                  onMouseMove={handleDraw}
                   onMouseUp={stopDrawing}
                   onMouseLeave={stopDrawing}
                   onTouchStart={startDrawing}
-                  onTouchMove={draw}
+                  onTouchMove={handleDraw}
                   onTouchEnd={stopDrawing}
                   className={`w-full bg-white ${isDrawer ? 'cursor-crosshair' : 'cursor-not-allowed'}`}
                   style={{ touchAction: 'none' }}
@@ -177,13 +199,13 @@ export function GameScreen({
                     type="text"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && sendMessage(e)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(e)}
                     placeholder="Type your guess..."
                     disabled={isDrawer}
                     className="flex-1 min-w-0 px-4 py-3 border-2 border-[#00D4FF] rounded-xl focus:outline-none focus:border-[#B620E0] focus:shadow-[0_0_15px_rgba(182,32,224,0.4)] disabled:bg-gray-300/50 bg-white/90 font-medium text-gray-900 transition-all"
                   />
                   <button
-                    onClick={sendMessage}
+                    onClick={handleSendMessage}
                     disabled={isDrawer}
                     className="px-4 py-3 bg-gradient-to-r from-[#00D4FF] to-[#B620E0] text-white rounded-xl hover:shadow-[0_0_20px_rgba(0,212,255,0.5)] disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none flex-shrink-0 font-bold border-2 border-[#00D4FF]/30 transition-all"
                   >
