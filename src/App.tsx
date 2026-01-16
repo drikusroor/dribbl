@@ -115,7 +115,8 @@ export function App() {
 
     const connectWebSocket = () => {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      const sessionId = sessionIdRef.current;
+      const wsUrl = `${protocol}//${window.location.host}/ws${sessionId ? `?sessionId=${sessionId}` : ''}`;
       const newSocket = new WebSocket(wsUrl);
       currentSocket = newSocket;
       
@@ -139,8 +140,14 @@ export function App() {
 
       newSocket.onmessage = (event) => {
         const { type, data }: WebSocketMessage = JSON.parse(event.data);
-        
+
         switch (type) {
+          case 'ping': {
+            // Respond to server heartbeat
+            newSocket.send(JSON.stringify({ type: 'pong' }));
+            break;
+          }
+
           case 'gameCreated': {
             const { gameId, game } = data;
             setCurrentGameId(gameId);
@@ -260,6 +267,57 @@ export function App() {
           case 'playerLeft': {
             const { game } = data;
             setPlayers(game.players);
+            break;
+          }
+
+          case 'playerDisconnected': {
+            const { game } = data;
+            setPlayers(game.players);
+            break;
+          }
+
+          case 'playerReconnected': {
+            const { game } = data;
+            setPlayers(game.players);
+            break;
+          }
+
+          case 'rejoinSuccess': {
+            const { gameId, game, started, drawingData, currentWord: word, wordHint: hint, currentDrawer: drawer, timeLeft: time, roundNumber: round, totalRounds: total } = data;
+            setCurrentGameId(gameId);
+            setPlayers(game.players);
+
+            // Find our player ID from the game
+            const sessionId = sessionIdRef.current;
+            if (sessionId) {
+              const myPlayer = game.players.find((p: Player) => p.id === sessionId);
+              if (myPlayer) {
+                setSocketId(sessionId);
+                socketIdRef.current = sessionId;
+              }
+            }
+
+            if (started) {
+              setGameStarted(true);
+              setScreen('game');
+              setCurrentDrawer(drawer);
+              setIsDrawer(drawer === socketIdRef.current);
+              setTimeLeft(time);
+              setRoundNumber(round);
+              setTotalRounds(total);
+              if (word) setCurrentWord(word);
+              if (hint) setWordHint(hint);
+
+              // Replay drawing data to restore canvas
+              if (drawingData && drawingData.length > 0) {
+                setTimeout(() => {
+                  clearCanvas();
+                  drawingData.forEach((d: DrawData) => drawOnCanvas(d));
+                }, 100);
+              }
+            } else {
+              setScreen('lobby');
+            }
             break;
           }
 
