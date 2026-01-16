@@ -400,7 +400,7 @@ const server = serve({
   },
   websocket: {
     open(ws: ServerWebSocket<WebSocketData>) {
-      console.log('User connected:', ws.data.id);
+      console.log('Socket connected:', ws.data.id);
       clients.set(ws.data.id, ws);
     },
     message(ws: ServerWebSocket<WebSocketData>, message: string | Buffer) {
@@ -424,9 +424,12 @@ const server = serve({
 
     if (url.pathname === '/ws') {
       const socketId = generateId();
+      const sessionId = url.searchParams.get('sessionId');
+
       const upgraded = server.upgrade(req, {
         data: {
           id: socketId,
+          sessionId: sessionId,
           gameId: null,
         } as WebSocketData,
       });
