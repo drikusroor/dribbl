@@ -52,6 +52,7 @@ interface WebSocketData {
   id: string;
   sessionId: string | null;
   gameId: string | null;
+  playerId: string | null;  // The ID used in game.players (sessionId if available, else socketId)
 }
 
 const games = new Map<string, Game>();
@@ -323,10 +324,11 @@ function endGame(game: Game) {
 }
 
 function handleDisconnect(ws: ServerWebSocket<WebSocketData>) {
-  const { id: socketId, sessionId, gameId } = ws.data;
-  console.log('Socket disconnected:', socketId, 'session:', sessionId);
+  const { id: socketId, sessionId, gameId, playerId } = ws.data;
+  console.log('Socket disconnected:', socketId, 'session:', sessionId, 'playerId:', playerId);
 
-  clients.delete(socketId);
+  // Delete from clients using playerId if available (after join/create), otherwise socketId
+  clients.delete(playerId || socketId);
 
   if (!sessionId) {
     // No session - legacy behavior, just clean up
@@ -384,10 +386,10 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
       case 'createGame': {
         const { playerName, isPrivate, avatar, sessionId } = data;
         const gameId = generateId();
-        
+
         // Use sessionId as player ID if provided, otherwise use socketId
         const playerId = sessionId || socketId;
-        
+
         if (sessionId) {
           const session = getOrCreateSession(sessionId);
           bindSessionToSocket(session, ws);
@@ -396,10 +398,15 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
           session.avatar = avatar;
           ws.data.sessionId = sessionId;
         }
-        
+
+        // Re-register client under playerId so broadcast/sendTo can find it
+        clients.delete(socketId);
+        clients.set(playerId, ws);
+        ws.data.playerId = playerId;
+
         const game = createGame(gameId, playerId, playerName, isPrivate, avatar);
         ws.data.gameId = gameId;
-        sendTo(socketId, 'gameCreated', { gameId, game: getGameState(game) });
+        sendTo(playerId, 'gameCreated', { gameId, game: getGameState(game) });
         break;
       }
 
@@ -419,7 +426,7 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
 
         // Use sessionId as player ID if provided, otherwise use socketId
         const playerId = sessionId || socketId;
-        
+
         if (sessionId) {
           const session = getOrCreateSession(sessionId);
           bindSessionToSocket(session, ws);
@@ -428,6 +435,11 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
           session.avatar = avatar;
           ws.data.sessionId = sessionId;
         }
+
+        // Re-register client under playerId so broadcast/sendTo can find it
+        clients.delete(socketId);
+        clients.set(playerId, ws);
+        ws.data.playerId = playerId;
 
         game.players.set(playerId, {
           id: playerId,
@@ -470,7 +482,11 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
         bindSessionToSocket(session, ws);
         ws.data.gameId = gameId;
         ws.data.sessionId = sessionId;
-        clients.set(socketId, ws);
+        ws.data.playerId = sessionId;
+
+        // Re-register client under sessionId (the playerId) so broadcast/sendTo can find it
+        clients.delete(socketId);
+        clients.set(sessionId, ws);
 
         // Mark player as reconnected
         player.isDisconnected = false;
@@ -490,7 +506,7 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
         }
 
         // Send comprehensive rejoin success message
-        sendTo(socketId, 'rejoinSuccess', {
+        sendTo(sessionId, 'rejoinSuccess', {
           gameId,
           game: getGameState(game),
           started: game.started,
@@ -538,14 +554,15 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
       case 'draw': {
         const { gameId, data: drawData } = data;
         const game = games.get(gameId);
-        if (!game || game.currentDrawer !== socketId) return;
+        const senderPlayerId = ws.data.playerId || socketId;
+        if (!game || game.currentDrawer !== senderPlayerId) return;
 
         game.drawingData.push(drawData);
-        
+
         // Broadcast to all except sender
-        game.players.forEach((_, playerId) => {
-          if (playerId !== socketId) {
-            sendTo(playerId, 'drawing', drawData);
+        game.players.forEach((_, pId) => {
+          if (pId !== senderPlayerId) {
+            sendTo(pId, 'drawing', drawData);
           }
         });
         break;
@@ -554,7 +571,8 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
       case 'clearCanvas': {
         const { gameId } = data;
         const game = games.get(gameId);
-        if (!game || game.currentDrawer !== socketId) return;
+        const senderPlayerId = ws.data.playerId || socketId;
+        if (!game || game.currentDrawer !== senderPlayerId) return;
 
         game.drawingData = [];
         broadcast(gameId, 'canvasCleared', null);
@@ -566,22 +584,23 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
         const game = games.get(gameId);
         if (!game || !game.started) return;
 
-        const player = game.players.get(socketId);
-        if (!player || socketId === game.currentDrawer) return;
+        const senderPlayerId = ws.data.playerId || socketId;
+        const player = game.players.get(senderPlayerId);
+        if (!player || senderPlayerId === game.currentDrawer) return;
 
         const isCorrect = guessMessage.toLowerCase().trim() === game.currentWord?.toLowerCase();
         const isClose = !isCorrect && game.currentWord ? isCloseGuess(guessMessage, game.currentWord) : false;
 
         broadcast(gameId, 'chatMessage', {
-          playerId: socketId,
+          playerId: senderPlayerId,
           playerName: player.name,
           message: guessMessage,
           isCorrect,
           isClose
         });
 
-        if (isCorrect && !game.guessedPlayers.has(socketId)) {
-          game.guessedPlayers.add(socketId);
+        if (isCorrect && !game.guessedPlayers.has(senderPlayerId)) {
+          game.guessedPlayers.add(senderPlayerId);
 
           const timeBonus = Math.floor((game.timeLeft / ROUND_TIME) * 50);
           const points = POINTS_CORRECT + timeBonus;
@@ -592,7 +611,7 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
           if (drawer) drawer.score += 50;
 
           broadcast(gameId, 'correctGuess', {
-            playerId: socketId,
+            playerId: senderPlayerId,
             playerName: player.name,
             points
           });
@@ -653,6 +672,7 @@ const server = serve({
           id: socketId,
           sessionId: sessionId,
           gameId: null,
+          playerId: null,
         } as WebSocketData,
       });
 
