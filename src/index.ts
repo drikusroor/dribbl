@@ -475,32 +475,33 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
         // Mark player as reconnected
         player.isDisconnected = false;
 
-        // Send current game state
-        sendTo(socketId, 'gameState', getGameState(game));
+        // Cancel any pending game cleanup since someone rejoined
+        cancelGameCleanup(gameId);
 
-        // If game started, send current round info
-        if (game.started) {
-          sendTo(socketId, 'roundStart', {
-            drawerId: game.currentDrawer,
-            roundNumber: game.roundNumber,
-            totalRounds: game.totalRounds,
-            timeLeft: game.timeLeft
-          });
-
-          // Send current word if they're the drawer
+        // Build rejoin success data
+        let currentWord = null;
+        let wordHint = null;
+        if (game.started && game.currentWord) {
           if (game.currentDrawer === sessionId) {
-            sendTo(socketId, 'yourWord', game.currentWord);
-          } else if (game.currentWord) {
-            // Send hint to guesser
-            const wordHint = game.currentWord.split('').map(char => char === ' ' ? '   ' : '_ ').join('').trim();
-            sendTo(socketId, 'hint', wordHint);
+            currentWord = game.currentWord;
+          } else {
+            wordHint = game.currentWord.split('').map(char => char === ' ' ? '   ' : '_ ').join('').trim();
           }
-
-          // Replay drawing data
-          game.drawingData.forEach(drawData => {
-            sendTo(socketId, 'drawing', drawData);
-          });
         }
+
+        // Send comprehensive rejoin success message
+        sendTo(socketId, 'rejoinSuccess', {
+          gameId,
+          game: getGameState(game),
+          started: game.started,
+          drawingData: game.drawingData,
+          currentWord,
+          wordHint,
+          currentDrawer: game.currentDrawer,
+          timeLeft: game.timeLeft,
+          roundNumber: game.roundNumber,
+          totalRounds: game.totalRounds
+        });
 
         // Notify others of reconnection
         broadcast(gameId, 'playerReconnected', {
