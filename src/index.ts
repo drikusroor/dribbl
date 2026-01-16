@@ -13,6 +13,7 @@ interface Player {
   score: number;
   hasDrawn: boolean;
   avatar?: string;
+  isDisconnected?: boolean;
 }
 
 interface Game {
@@ -32,8 +33,24 @@ interface Game {
   customWords: string[];
 }
 
+interface Session {
+  sessionId: string;
+  socketId: string | null;
+  ws: ServerWebSocket<WebSocketData> | null;
+  gameId: string | null;
+  playerName: string | null;
+  avatar: string | null;
+  disconnectedAt: number | null;
+  cleanupTimer: ReturnType<typeof setTimeout> | null;
+}
+
+const sessions = new Map<string, Session>();
+const DISCONNECT_TIMEOUT = 30_000; // 30 seconds
+const PING_INTERVAL = 15_000; // 15 seconds
+
 interface WebSocketData {
   id: string;
+  sessionId: string | null;
   gameId: string | null;
 }
 
@@ -78,6 +95,113 @@ function sendTo(playerId: string, type: string, data: any) {
   const client = clients.get(playerId);
   if (client && client.readyState === WebSocket.OPEN) {
     client.send(JSON.stringify({ type, data }));
+  }
+}
+
+function getOrCreateSession(sessionId: string): Session {
+  let session = sessions.get(sessionId);
+  if (!session) {
+    session = {
+      sessionId,
+      socketId: null,
+      ws: null,
+      gameId: null,
+      playerName: null,
+      avatar: null,
+      disconnectedAt: null,
+      cleanupTimer: null,
+    };
+    sessions.set(sessionId, session);
+  }
+  return session;
+}
+
+function bindSessionToSocket(session: Session, ws: ServerWebSocket<WebSocketData>) {
+  // Clear any pending cleanup
+  if (session.cleanupTimer) {
+    clearTimeout(session.cleanupTimer);
+    session.cleanupTimer = null;
+  }
+  session.disconnectedAt = null;
+  session.socketId = ws.data.id;
+  session.ws = ws;
+}
+
+function scheduleSessionCleanup(session: Session) {
+  if (session.cleanupTimer) {
+    clearTimeout(session.cleanupTimer);
+  }
+
+  session.cleanupTimer = setTimeout(() => {
+    removeSessionPermanently(session.sessionId);
+  }, DISCONNECT_TIMEOUT);
+}
+
+function removeSessionPermanently(sessionId: string) {
+  const session = sessions.get(sessionId);
+  if (!session) return;
+
+  console.log('Removing session permanently:', sessionId);
+
+  // Remove from game
+  if (session.gameId) {
+    const game = games.get(session.gameId);
+    if (game) {
+      game.players.delete(sessionId);
+
+      if (game.players.size === 0) {
+        // Schedule game cleanup
+        scheduleGameCleanup(game);
+      } else {
+        broadcast(session.gameId, 'playerLeft', {
+          playerId: sessionId,
+          game: getGameState(game)
+        });
+
+        // If current drawer left, skip turn
+        if (game.started && game.currentDrawer === sessionId) {
+          nextTurn(game);
+        }
+      }
+    }
+  }
+
+  // Clean up socket reference
+  if (session.socketId) {
+    clients.delete(session.socketId);
+  }
+
+  sessions.delete(sessionId);
+}
+
+// Game cleanup tracking
+const gameCleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleGameCleanup(game: Game) {
+  // Cancel existing timer if any
+  const existingTimer = gameCleanupTimers.get(game.id);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+
+  const timer = setTimeout(() => {
+    const currentGame = games.get(game.id);
+    if (currentGame && currentGame.players.size === 0) {
+      console.log('Removing empty game:', game.id);
+      if (currentGame.timer) clearInterval(currentGame.timer);
+      games.delete(game.id);
+      gameCleanupTimers.delete(game.id);
+    }
+  }, DISCONNECT_TIMEOUT);
+
+  gameCleanupTimers.set(game.id, timer);
+}
+
+function cancelGameCleanup(gameId: string) {
+  const timer = gameCleanupTimers.get(gameId);
+  if (timer) {
+    clearTimeout(timer);
+    gameCleanupTimers.delete(gameId);
   }
 }
 
@@ -199,30 +323,52 @@ function endGame(game: Game) {
 }
 
 function handleDisconnect(ws: ServerWebSocket<WebSocketData>) {
-  const { id: socketId, gameId } = ws.data;
-  console.log('User disconnected:', socketId);
+  const { id: socketId, sessionId, gameId } = ws.data;
+  console.log('Socket disconnected:', socketId, 'session:', sessionId);
 
   clients.delete(socketId);
 
-  games.forEach((game, gId) => {
-    if (game.players.has(socketId)) {
-      game.players.delete(socketId);
+  if (!sessionId) {
+    // No session - legacy behavior, just clean up
+    return;
+  }
 
-      if (game.players.size === 0) {
-        if (game.timer) clearInterval(game.timer);
-        games.delete(gId);
-      } else {
-        broadcast(gId, 'playerLeft', {
-          playerId: socketId,
+  const session = sessions.get(sessionId);
+  if (!session) return;
+
+  session.disconnectedAt = Date.now();
+  session.ws = null;
+  session.socketId = null;
+
+  // Mark player as disconnected in game
+  if (session.gameId) {
+    const game = games.get(session.gameId);
+    if (game) {
+      const player = game.players.get(sessionId);
+      if (player) {
+        player.isDisconnected = true;
+        broadcast(session.gameId, 'playerDisconnected', {
+          playerId: sessionId,
           game: getGameState(game)
         });
 
-        if (game.started && game.currentDrawer === socketId) {
-          nextTurn(game);
+        // If drawer disconnected during active game, skip after grace period
+        if (game.started && game.currentDrawer === sessionId) {
+          setTimeout(() => {
+            const currentGame = games.get(session.gameId!);
+            const currentSession = sessions.get(sessionId);
+            if (currentGame && currentSession?.disconnectedAt &&
+                currentGame.currentDrawer === sessionId) {
+              nextTurn(currentGame);
+            }
+          }, 5000); // 5 second grace period for drawer
         }
       }
     }
-  });
+  }
+
+  // Schedule cleanup
+  scheduleSessionCleanup(session);
 }
 
 // ============================================================================
@@ -383,7 +529,7 @@ const server = serve({
   },
   websocket: {
     open(ws: ServerWebSocket<WebSocketData>) {
-      console.log('User connected:', ws.data.id);
+      console.log('Socket connected:', ws.data.id);
       clients.set(ws.data.id, ws);
     },
     message(ws: ServerWebSocket<WebSocketData>, message: string | Buffer) {
@@ -407,9 +553,12 @@ const server = serve({
 
     if (url.pathname === '/ws') {
       const socketId = generateId();
+      const sessionId = url.searchParams.get('sessionId');
+
       const upgraded = server.upgrade(req, {
         data: {
           id: socketId,
+          sessionId: sessionId,
           gameId: null,
         } as WebSocketData,
       });
