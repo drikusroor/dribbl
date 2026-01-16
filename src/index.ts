@@ -32,8 +32,24 @@ interface Game {
   customWords: string[];
 }
 
+interface Session {
+  sessionId: string;
+  socketId: string | null;
+  ws: ServerWebSocket<WebSocketData> | null;
+  gameId: string | null;
+  playerName: string | null;
+  avatar: string | null;
+  disconnectedAt: number | null;
+  cleanupTimer: ReturnType<typeof setTimeout> | null;
+}
+
+const sessions = new Map<string, Session>();
+const DISCONNECT_TIMEOUT = 30_000; // 30 seconds
+const PING_INTERVAL = 15_000; // 15 seconds
+
 interface WebSocketData {
   id: string;
+  sessionId: string | null;
   gameId: string | null;
 }
 
