@@ -98,6 +98,113 @@ function sendTo(playerId: string, type: string, data: any) {
   }
 }
 
+function getOrCreateSession(sessionId: string): Session {
+  let session = sessions.get(sessionId);
+  if (!session) {
+    session = {
+      sessionId,
+      socketId: null,
+      ws: null,
+      gameId: null,
+      playerName: null,
+      avatar: null,
+      disconnectedAt: null,
+      cleanupTimer: null,
+    };
+    sessions.set(sessionId, session);
+  }
+  return session;
+}
+
+function bindSessionToSocket(session: Session, ws: ServerWebSocket<WebSocketData>) {
+  // Clear any pending cleanup
+  if (session.cleanupTimer) {
+    clearTimeout(session.cleanupTimer);
+    session.cleanupTimer = null;
+  }
+  session.disconnectedAt = null;
+  session.socketId = ws.data.id;
+  session.ws = ws;
+}
+
+function scheduleSessionCleanup(session: Session) {
+  if (session.cleanupTimer) {
+    clearTimeout(session.cleanupTimer);
+  }
+
+  session.cleanupTimer = setTimeout(() => {
+    removeSessionPermanently(session.sessionId);
+  }, DISCONNECT_TIMEOUT);
+}
+
+function removeSessionPermanently(sessionId: string) {
+  const session = sessions.get(sessionId);
+  if (!session) return;
+
+  console.log('Removing session permanently:', sessionId);
+
+  // Remove from game
+  if (session.gameId) {
+    const game = games.get(session.gameId);
+    if (game) {
+      game.players.delete(sessionId);
+
+      if (game.players.size === 0) {
+        // Schedule game cleanup
+        scheduleGameCleanup(game);
+      } else {
+        broadcast(session.gameId, 'playerLeft', {
+          playerId: sessionId,
+          game: getGameState(game)
+        });
+
+        // If current drawer left, skip turn
+        if (game.started && game.currentDrawer === sessionId) {
+          nextTurn(game);
+        }
+      }
+    }
+  }
+
+  // Clean up socket reference
+  if (session.socketId) {
+    clients.delete(session.socketId);
+  }
+
+  sessions.delete(sessionId);
+}
+
+// Game cleanup tracking
+const gameCleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleGameCleanup(game: Game) {
+  // Cancel existing timer if any
+  const existingTimer = gameCleanupTimers.get(game.id);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+
+  const timer = setTimeout(() => {
+    const currentGame = games.get(game.id);
+    if (currentGame && currentGame.players.size === 0) {
+      console.log('Removing empty game:', game.id);
+      if (currentGame.timer) clearInterval(currentGame.timer);
+      games.delete(game.id);
+      gameCleanupTimers.delete(game.id);
+    }
+  }, DISCONNECT_TIMEOUT);
+
+  gameCleanupTimers.set(game.id, timer);
+}
+
+function cancelGameCleanup(gameId: string) {
+  const timer = gameCleanupTimers.get(gameId);
+  if (timer) {
+    clearTimeout(timer);
+    gameCleanupTimers.delete(gameId);
+  }
+}
+
 function createGame(gameId: string, creatorId: string, creatorName: string, isPrivate: boolean, avatar?: string): Game {
   const game: Game = {
     id: gameId,
