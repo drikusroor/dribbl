@@ -7,10 +7,15 @@
 
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
+import { SoundProvider } from "./contexts/SoundContext";
 
 function start() {
   const root = createRoot(document.getElementById("root")!);
-  root.render(<App />);
+  root.render(
+    <SoundProvider>
+      <App />
+    </SoundProvider>
+  );
 }
 
 if (document.readyState === "loading") {
