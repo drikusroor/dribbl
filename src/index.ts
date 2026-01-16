@@ -323,30 +323,52 @@ function endGame(game: Game) {
 }
 
 function handleDisconnect(ws: ServerWebSocket<WebSocketData>) {
-  const { id: socketId, gameId } = ws.data;
-  console.log('User disconnected:', socketId);
+  const { id: socketId, sessionId, gameId } = ws.data;
+  console.log('Socket disconnected:', socketId, 'session:', sessionId);
 
   clients.delete(socketId);
 
-  games.forEach((game, gId) => {
-    if (game.players.has(socketId)) {
-      game.players.delete(socketId);
+  if (!sessionId) {
+    // No session - legacy behavior, just clean up
+    return;
+  }
 
-      if (game.players.size === 0) {
-        if (game.timer) clearInterval(game.timer);
-        games.delete(gId);
-      } else {
-        broadcast(gId, 'playerLeft', {
-          playerId: socketId,
+  const session = sessions.get(sessionId);
+  if (!session) return;
+
+  session.disconnectedAt = Date.now();
+  session.ws = null;
+  session.socketId = null;
+
+  // Mark player as disconnected in game
+  if (session.gameId) {
+    const game = games.get(session.gameId);
+    if (game) {
+      const player = game.players.get(sessionId);
+      if (player) {
+        player.isDisconnected = true;
+        broadcast(session.gameId, 'playerDisconnected', {
+          playerId: sessionId,
           game: getGameState(game)
         });
 
-        if (game.started && game.currentDrawer === socketId) {
-          nextTurn(game);
+        // If drawer disconnected during active game, skip after grace period
+        if (game.started && game.currentDrawer === sessionId) {
+          setTimeout(() => {
+            const currentGame = games.get(session.gameId!);
+            const currentSession = sessions.get(sessionId);
+            if (currentGame && currentSession?.disconnectedAt &&
+                currentGame.currentDrawer === sessionId) {
+              nextTurn(currentGame);
+            }
+          }, 5000); // 5 second grace period for drawer
         }
       }
     }
-  });
+  }
+
+  // Schedule cleanup
+  scheduleSessionCleanup(session);
 }
 
 // ============================================================================
