@@ -53,9 +53,8 @@ export function GameScreen({
 }: GameScreenProps) {
   const sounds = useSounds();
 
-  // Wrapper for draw that adds sound
+  // Wrapper for draw (sound removed - synthesized sounds don't work well for pencil strokes)
   const handleDraw = (e: React.MouseEvent | React.TouchEvent) => {
-    sounds.playDraw();
     draw(e);
   };
 
