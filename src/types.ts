@@ -4,6 +4,7 @@ export interface Player {
   score: number;
   hasDrawn: boolean;
   avatar?: string;
+  isDisconnected?: boolean;
 }
 
 export interface ChatMessage {

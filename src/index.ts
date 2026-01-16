@@ -13,6 +13,7 @@ interface Player {
   score: number;
   hasDrawn: boolean;
   avatar?: string;
+  isDisconnected?: boolean;
 }
 
 interface Game {
