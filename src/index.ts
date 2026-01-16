@@ -382,16 +382,29 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
 
     switch (type) {
       case 'createGame': {
-        const { playerName, isPrivate, avatar } = data;
+        const { playerName, isPrivate, avatar, sessionId } = data;
         const gameId = generateId();
-        const game = createGame(gameId, socketId, playerName, isPrivate, avatar);
+        
+        // Use sessionId as player ID if provided, otherwise use socketId
+        const playerId = sessionId || socketId;
+        
+        if (sessionId) {
+          const session = getOrCreateSession(sessionId);
+          bindSessionToSocket(session, ws);
+          session.gameId = gameId;
+          session.playerName = playerName;
+          session.avatar = avatar;
+          ws.data.sessionId = sessionId;
+        }
+        
+        const game = createGame(gameId, playerId, playerName, isPrivate, avatar);
         ws.data.gameId = gameId;
         sendTo(socketId, 'gameCreated', { gameId, game: getGameState(game) });
         break;
       }
 
       case 'joinGame': {
-        const { gameId, playerName, avatar } = data;
+        const { gameId, playerName, avatar, sessionId } = data;
         const game = games.get(gameId);
 
         if (!game) {
@@ -404,8 +417,20 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
           return;
         }
 
-        game.players.set(socketId, {
-          id: socketId,
+        // Use sessionId as player ID if provided, otherwise use socketId
+        const playerId = sessionId || socketId;
+        
+        if (sessionId) {
+          const session = getOrCreateSession(sessionId);
+          bindSessionToSocket(session, ws);
+          session.gameId = gameId;
+          session.playerName = playerName;
+          session.avatar = avatar;
+          ws.data.sessionId = sessionId;
+        }
+
+        game.players.set(playerId, {
+          id: playerId,
           name: playerName,
           score: 0,
           hasDrawn: false,
@@ -414,9 +439,77 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
 
         ws.data.gameId = gameId;
         broadcast(gameId, 'playerJoined', {
-          player: game.players.get(socketId),
+          player: game.players.get(playerId),
           game: getGameState(game)
         });
+        break;
+      }
+
+      case 'rejoinGame': {
+        const { sessionId, gameId } = data;
+        const game = games.get(gameId);
+
+        if (!game) {
+          sendTo(socketId, 'error', 'game_not_found');
+          return;
+        }
+
+        const session = sessions.get(sessionId);
+        if (!session || session.gameId !== gameId) {
+          sendTo(socketId, 'error', 'player_expired');
+          return;
+        }
+
+        const player = game.players.get(sessionId);
+        if (!player) {
+          sendTo(socketId, 'error', 'player_not_found');
+          return;
+        }
+
+        // Reconnect the session
+        bindSessionToSocket(session, ws);
+        ws.data.gameId = gameId;
+        ws.data.sessionId = sessionId;
+        clients.set(socketId, ws);
+
+        // Mark player as reconnected
+        player.isDisconnected = false;
+
+        // Cancel any pending game cleanup since someone rejoined
+        cancelGameCleanup(gameId);
+
+        // Build rejoin success data
+        let currentWord = null;
+        let wordHint = null;
+        if (game.started && game.currentWord) {
+          if (game.currentDrawer === sessionId) {
+            currentWord = game.currentWord;
+          } else {
+            wordHint = game.currentWord.split('').map(char => char === ' ' ? '   ' : '_ ').join('').trim();
+          }
+        }
+
+        // Send comprehensive rejoin success message
+        sendTo(socketId, 'rejoinSuccess', {
+          gameId,
+          game: getGameState(game),
+          started: game.started,
+          drawingData: game.drawingData,
+          currentWord,
+          wordHint,
+          currentDrawer: game.currentDrawer,
+          timeLeft: game.timeLeft,
+          roundNumber: game.roundNumber,
+          totalRounds: game.totalRounds
+        });
+
+        // Notify others of reconnection
+        broadcast(gameId, 'playerReconnected', {
+          playerId: sessionId,
+          game: getGameState(game)
+        });
+
+        console.log(`Player ${player.name} (${sessionId}) reconnected`);
         break;
       }
 
