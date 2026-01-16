@@ -187,6 +187,11 @@ export const SOUNDS: Record<string, ZzFXParams> = {
   // Social
   playerJoined: [0.2, 0, 440, 0.02, 0.2, 0.1, 0, 2, 5, 0, 0, 0, 0, 44100, 1],
   wordReveal: [0.25, 0, 659, 0.03, 0.15, 0.1, 0, 2, 8, 0, 0, 0, 0, 44100, 1],
+
+  // Scoreboard reveal
+  drumRoll: [0.15, 0.1, 150, 0.1, 0.6, 0.2, 3, 0, 0, 0, 0, 0, 0.4, 44100, 1],
+  revealTick: [0.2, 0, 600, 0, 0.04, 0.02, 0, 0, 0, 0, 0, 0, 0, 44100, 1],
+  podiumReveal: [0.25, 0, 523, 0.02, 0.1, 0.08, 0, 1.5, 0, 0, 0, 784, 0, 44100, 1],
 };
 
 // Helper to play a sound from the bank

@@ -18,6 +18,9 @@ interface SoundContextType {
   playTimeWarning: () => void;
   playPlayerJoined: () => void;
   playWordReveal: () => void;
+  playDrumRoll: () => void;
+  playRevealTick: () => void;
+  playPodiumReveal: () => void;
 }
 
 const SoundContext = createContext<SoundContextType | undefined>(undefined);
@@ -63,6 +66,9 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const playTimeWarning = useCallback(() => playSafe(SOUNDS.timeWarning), [playSafe]);
   const playPlayerJoined = useCallback(() => playSafe(SOUNDS.playerJoined), [playSafe]);
   const playWordReveal = useCallback(() => playSafe(SOUNDS.wordReveal), [playSafe]);
+  const playDrumRoll = useCallback(() => playSafe(SOUNDS.drumRoll), [playSafe]);
+  const playRevealTick = useCallback(() => playSafe(SOUNDS.revealTick), [playSafe]);
+  const playPodiumReveal = useCallback(() => playSafe(SOUNDS.podiumReveal), [playSafe]);
 
   // Draw sound with throttling (max once per 100ms)
   const playDraw = useCallback(() => {
@@ -88,6 +94,9 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     playTimeWarning,
     playPlayerJoined,
     playWordReveal,
+    playDrumRoll,
+    playRevealTick,
+    playPodiumReveal,
   };
 
   return <SoundContext.Provider value={value}>{children}</SoundContext.Provider>;
