@@ -34,6 +34,20 @@ The Dockerfile uses the Bun baseline build to support older CPUs without AVX2 in
 
 If you're running on modern hardware with AVX2 support, you may achieve better performance by switching to the official `oven/bun:1` image in the Dockerfile.
 
+## Audio System
+
+The game features 8-bit retro sound effects for all interactions:
+- Drawing and erasing sounds
+- Correct/wrong/close guess feedback
+- Round start and game over fanfares
+- Player join notifications
+- Time warnings
+- Button click sounds
+
+**Audio Toggle:** Click the speaker icon in the top-right corner to mute/unmute all sounds. Your preference is saved automatically.
+
+**Technology:** Sounds are generated programmatically using ZzFX (~1KB), keeping the bundle size minimal while providing rich audio feedback.
+
 ---
 
 This project was created using `bun init` in bun v1.3.5. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.

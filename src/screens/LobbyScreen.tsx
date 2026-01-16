@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Player } from "../types";
+import { useSounds } from '../contexts/SoundContext';
 
 interface LobbyScreenProps {
   currentGameId: string;
@@ -26,6 +27,7 @@ export function LobbyScreen({
   startGame,
   leaveLobby,
 }: LobbyScreenProps) {
+  const sounds = useSounds();
   const [copied, setCopied] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
 
@@ -137,7 +139,10 @@ export function LobbyScreen({
         </div>
 
         <button
-          onClick={startGame}
+          onClick={() => {
+            sounds.playClick();
+            startGame();
+          }}
           disabled={players.length < 2}
           className="w-full bg-gradient-to-r from-[#00FF88] via-[#00D4FF] to-[#B620E0] text-black py-4 rounded-xl font-black text-lg hover:shadow-[0_0_30px_rgba(0,255,136,0.6),0_0_60px_rgba(0,212,255,0.4)] disabled:from-gray-400 disabled:to-gray-500 disabled:text-gray-600 disabled:shadow-none transition-all border-2 border-white/30 relative overflow-hidden group mb-3"
         >

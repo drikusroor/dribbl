@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useSounds } from '../contexts/SoundContext';
 
 interface HomeScreenProps {
   playerName: string;
@@ -21,6 +22,7 @@ export function HomeScreen({
   avatar,
   setAvatar,
 }: HomeScreenProps) {
+  const sounds = useSounds();
   const [showAvatarEditor, setShowAvatarEditor] = useState(false);
   const [isDrawingAvatar, setIsDrawingAvatar] = useState(false);
   const [color, setColor] = useState('#000000');
@@ -244,7 +246,10 @@ export function HomeScreen({
 
           {/* Action button */}
           <button
-            onClick={gameId.trim() ? joinGame : createGame}
+            onClick={() => {
+              sounds.playClick();
+              gameId.trim() ? joinGame() : createGame();
+            }}
             disabled={!playerName.trim()}
             className="w-full bg-gradient-to-r from-[#00D4FF] via-[#B620E0] to-[#FF2F92] text-white py-4 rounded-xl font-black text-lg hover:shadow-[0_0_30px_rgba(0,212,255,0.6),0_0_60px_rgba(182,32,224,0.4)] disabled:from-gray-400 disabled:to-gray-500 disabled:shadow-none transition-all border-2 border-white/30 relative overflow-hidden group"
           >

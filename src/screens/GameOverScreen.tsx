@@ -1,4 +1,5 @@
 import { Player } from "../types";
+import { useSounds } from '../contexts/SoundContext';
 
 interface GameOverScreenProps {
   finalScores: Player[];
@@ -6,6 +7,7 @@ interface GameOverScreenProps {
 }
 
 export function GameOverScreen({ finalScores, returnToLobby }: GameOverScreenProps) {
+  const sounds = useSounds();
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative z-10">
       <div className="bg-gradient-to-br from-[#E8E8E8] via-white to-[#E8E8E8] rounded-3xl shadow-[0_0_80px_rgba(0,212,255,0.5),0_0_160px_rgba(182,32,224,0.3),inset_0_2px_20px_rgba(255,255,255,0.8)] p-12 max-w-4xl w-full border-4 border-transparent relative overflow-hidden" style={{borderImage: 'linear-gradient(135deg, rgba(0,212,255,0.5), rgba(182,32,224,0.5), rgba(255,47,146,0.5)) 1'}}>
@@ -51,7 +53,10 @@ export function GameOverScreen({ finalScores, returnToLobby }: GameOverScreenPro
         </div>
 
         <button
-          onClick={returnToLobby}
+          onClick={() => {
+            sounds.playClick();
+            returnToLobby();
+          }}
           className="w-full bg-gradient-to-r from-[#00D4FF] via-[#B620E0] to-[#FF2F92] text-white py-5 rounded-xl font-black text-xl hover:shadow-[0_0_40px_rgba(0,212,255,0.7),0_0_80px_rgba(182,32,224,0.5)] transition-all border-2 border-white/30 relative overflow-hidden group"
         >
           <span className="relative z-10">Return to Lobby</span>
