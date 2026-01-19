@@ -99,6 +99,25 @@ function sendTo(playerId: string, type: string, data: any) {
   }
 }
 
+function broadcastPersonalized(
+  gameId: string,
+  type: string,
+  getDataForPlayer: (playerId: string) => any
+) {
+  const game = games.get(gameId);
+  if (!game) return;
+
+  game.players.forEach((_, playerId) => {
+    const client = clients.get(playerId);
+    if (client && client.readyState === WebSocket.OPEN) {
+      const data = getDataForPlayer(playerId);
+      if (data !== null) {
+        client.send(JSON.stringify({ type, data }));
+      }
+    }
+  });
+}
+
 function getOrCreateSession(sessionId: string): Session {
   let session = sessions.get(sessionId);
   if (!session) {
@@ -591,19 +610,36 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
         const isCorrect = guessMessage.toLowerCase().trim() === game.currentWord?.toLowerCase();
         const isClose = !isCorrect && game.currentWord ? isCloseGuess(guessMessage, game.currentWord) : false;
 
-        broadcast(gameId, 'chatMessage', {
-          playerId: senderPlayerId,
-          playerName: player.name,
-          message: guessMessage,
-          isCorrect,
-          isClose
+        broadcastPersonalized(gameId, 'chatMessage', (recipientId) => {
+          const isRecipientSender = recipientId === senderPlayerId;
+          const isRecipientDrawer = recipientId === game.currentDrawer;
+          const hasRecipientGuessed = game.guessedPlayers.has(recipientId);
+
+          if (isCorrect) {
+            if (isRecipientSender || isRecipientDrawer || hasRecipientGuessed) {
+              return { playerId: senderPlayerId, playerName: player.name, message: guessMessage, isCorrect: true, isClose: false, isSystemLike: false };
+            } else {
+              return { playerId: senderPlayerId, playerName: player.name, message: `${player.name} guessed the word!`, isCorrect: true, isClose: false, isSystemLike: true };
+            }
+          } else if (isClose) {
+            if (isRecipientSender) {
+              return { playerId: senderPlayerId, playerName: player.name, message: guessMessage, isCorrect: false, isClose: true };
+            } else {
+              return { playerId: senderPlayerId, playerName: player.name, message: guessMessage, isCorrect: false, isClose: false };
+            }
+          } else {
+            return { playerId: senderPlayerId, playerName: player.name, message: guessMessage, isCorrect: false, isClose: false };
+          }
         });
 
         if (isCorrect && !game.guessedPlayers.has(senderPlayerId)) {
           game.guessedPlayers.add(senderPlayerId);
 
+          // Tiered scoring: first guesser gets more points
+          const guessOrder = game.guessedPlayers.size;
+          const basePoints = guessOrder === 1 ? 150 : guessOrder === 2 ? 125 : guessOrder === 3 ? 100 : Math.max(50, 100 - (guessOrder - 3) * 25);
           const timeBonus = Math.floor((game.timeLeft / ROUND_TIME) * 50);
-          const points = POINTS_CORRECT + timeBonus;
+          const points = basePoints + timeBonus;
 
           player.score += points;
 

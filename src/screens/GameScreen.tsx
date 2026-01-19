@@ -184,12 +184,18 @@ export function GameScreen({
                 <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-2 mb-3">
                   {messages.map((msg, i) => (
                     <div key={i} className={`text-sm p-3 rounded-xl border-2 font-medium ${
-                      msg.isCorrect ? 'bg-gradient-to-r from-[#00FF88]/30 to-[#00D4FF]/30 border-[#00FF88]/50 shadow-[0_0_10px_rgba(0,255,136,0.3)]' : 
-                      msg.isClose ? 'bg-gradient-to-r from-[#FFD700]/30 to-[#FFA500]/30 border-[#FFD700]/50 shadow-[0_0_10px_rgba(255,215,0,0.3)]' : 
+                      msg.isCorrect ? 'bg-gradient-to-r from-[#00FF88]/30 to-[#00D4FF]/30 border-[#00FF88]/50 shadow-[0_0_10px_rgba(0,255,136,0.3)]' :
+                      msg.isClose ? 'bg-gradient-to-r from-[#FFD700]/30 to-[#FFA500]/30 border-[#FFD700]/50 shadow-[0_0_10px_rgba(255,215,0,0.3)]' :
                       msg.playerId === 'system' ? 'bg-gradient-to-r from-[#00D4FF]/20 to-[#B620E0]/20 border-[#00D4FF]/40' : 'bg-white/80 border-[#00D4FF]/20'
-                    }`}>
-                      <span className="font-black bg-gradient-to-r from-[#00D4FF] to-[#B620E0] bg-clip-text text-transparent">{msg.playerName}:</span> {msg.message}
-                      {msg.isClose && <span className="text-xs ml-2 font-bold bg-gradient-to-r from-[#FFD700] to-[#FFA500] bg-clip-text text-transparent">(Close!)</span>}
+                    } ${msg.isSystemLike ? 'italic' : ''}`}>
+                      {msg.isSystemLike ? (
+                        <span className="bg-gradient-to-r from-[#00FF88] to-[#00D4FF] bg-clip-text text-transparent">{msg.message}</span>
+                      ) : (
+                        <>
+                          <span className="font-black bg-gradient-to-r from-[#00D4FF] to-[#B620E0] bg-clip-text text-transparent">{msg.playerName}:</span> {msg.message}
+                          {msg.isClose && <span className="text-xs ml-2 font-bold bg-gradient-to-r from-[#FFD700] to-[#FFA500] bg-clip-text text-transparent">(Close!)</span>}
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -13,6 +13,7 @@ export interface ChatMessage {
   message: string;
   isCorrect: boolean;
   isClose?: boolean;
+  isSystemLike?: boolean;
 }
 
 export interface DrawData {

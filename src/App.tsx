@@ -223,8 +223,8 @@ export function App() {
           }
 
           case 'chatMessage': {
-            const { playerId, playerName, message, isCorrect, isClose } = data;
-            setMessages(prev => [...prev, { playerId, playerName, message, isCorrect, isClose }]);
+            const { playerId, playerName, message, isCorrect, isClose, isSystemLike } = data;
+            setMessages(prev => [...prev, { playerId, playerName, message, isCorrect, isClose, isSystemLike }]);
             break;
           }
 
