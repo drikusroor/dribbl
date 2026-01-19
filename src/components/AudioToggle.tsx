@@ -13,7 +13,7 @@ export const AudioToggle: React.FC = () => {
     toggleMute();
     if (willBeUnmuted) {
       // Play sound directly, bypassing mute check for toggle demonstration
-      playSound(SOUNDS.click);
+      playSound(SOUNDS.click as any);
     }
   };
 

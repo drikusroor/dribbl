@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Player } from "../types";
+import type { Player } from "../types";
 import { useSounds } from '../contexts/SoundContext';
 
 interface LobbyScreenProps {

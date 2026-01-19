@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Player, ChatMessage, DrawData } from "../types";
+import type { Player, ChatMessage, DrawData } from "../types";
 import { useSounds } from '../contexts/SoundContext';
 
 interface GameScreenProps {

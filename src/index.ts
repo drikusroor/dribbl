@@ -741,7 +741,7 @@ const server = serve({
       });
     }
 
-    return new Response(index, {
+    return new Response(index as unknown as BodyInit, {
       headers: { "Content-Type": "text/html" },
     });
   },

@@ -4,7 +4,7 @@ import { HomeScreen } from "./screens/HomeScreen";
 import { LobbyScreen } from "./screens/LobbyScreen";
 import { GameScreen } from "./screens/GameScreen";
 import { GameOverScreen } from "./screens/GameOverScreen";
-import { Player, ChatMessage, DrawData } from "./types";
+import type { Player, ChatMessage, DrawData } from "./types";
 import "./index.css";
 
 // WebSocket helper type

@@ -11,7 +11,7 @@ let audioContext: AudioContext | null = null;
 
 const getAudioContext = (): AudioContext => {
   if (!audioContext) {
-    if (typeof AudioContext === 'undefined' && typeof webkitAudioContext === 'undefined') {
+    if (typeof AudioContext === 'undefined' && typeof (window as any).webkitAudioContext === 'undefined') {
       throw new Error('Web Audio API not supported');
     }
     audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -144,7 +144,7 @@ export const zzfx = (
 };
 
 // Fix 3: Proper type definition for ZzFX parameters
-type ZzFXParams = [
+export type ZzFXParams = [
   volume?: number,
   randomness?: number,
   frequency?: number,

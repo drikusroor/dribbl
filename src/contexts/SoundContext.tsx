@@ -1,7 +1,7 @@
 // src/contexts/SoundContext.tsx
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { playSound, SOUNDS } from '../lib/zzfx';
+import { playSound, SOUNDS, type ZzFXParams } from '../lib/zzfx';
 
 interface SoundContextType {
   isMuted: boolean;
@@ -48,33 +48,33 @@ export const SoundProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   // Helper to play sound only if not muted
-  const playSafe = useCallback((soundParams: number[]) => {
+  const playSafe = useCallback((soundParams: ZzFXParams) => {
     if (!isMuted) {
       playSound(soundParams);
     }
   }, [isMuted]);
 
   // Sound methods
-  const playClick = useCallback(() => playSafe(SOUNDS.click), [playSafe]);
-  const playTyping = useCallback(() => playSafe(SOUNDS.typing), [playSafe]);
-  const playCorrect = useCallback(() => playSafe(SOUNDS.correct), [playSafe]);
-  const playWrong = useCallback(() => playSafe(SOUNDS.wrong), [playSafe]);
-  const playClose = useCallback(() => playSafe(SOUNDS.close), [playSafe]);
-  const playClear = useCallback(() => playSafe(SOUNDS.clear), [playSafe]);
-  const playRoundStart = useCallback(() => playSafe(SOUNDS.roundStart), [playSafe]);
-  const playGameOver = useCallback(() => playSafe(SOUNDS.gameOver), [playSafe]);
-  const playTimeWarning = useCallback(() => playSafe(SOUNDS.timeWarning), [playSafe]);
-  const playPlayerJoined = useCallback(() => playSafe(SOUNDS.playerJoined), [playSafe]);
-  const playWordReveal = useCallback(() => playSafe(SOUNDS.wordReveal), [playSafe]);
-  const playDrumRoll = useCallback(() => playSafe(SOUNDS.drumRoll), [playSafe]);
-  const playRevealTick = useCallback(() => playSafe(SOUNDS.revealTick), [playSafe]);
-  const playPodiumReveal = useCallback(() => playSafe(SOUNDS.podiumReveal), [playSafe]);
+  const playClick = useCallback(() => playSafe(SOUNDS.click!), [playSafe]);
+  const playTyping = useCallback(() => playSafe(SOUNDS.typing!), [playSafe]);
+  const playCorrect = useCallback(() => playSafe(SOUNDS.correct!), [playSafe]);
+  const playWrong = useCallback(() => playSafe(SOUNDS.wrong!), [playSafe]);
+  const playClose = useCallback(() => playSafe(SOUNDS.close!), [playSafe]);
+  const playClear = useCallback(() => playSafe(SOUNDS.clear!), [playSafe]);
+  const playRoundStart = useCallback(() => playSafe(SOUNDS.roundStart!), [playSafe]);
+  const playGameOver = useCallback(() => playSafe(SOUNDS.gameOver!), [playSafe]);
+  const playTimeWarning = useCallback(() => playSafe(SOUNDS.timeWarning!), [playSafe]);
+  const playPlayerJoined = useCallback(() => playSafe(SOUNDS.playerJoined!), [playSafe]);
+  const playWordReveal = useCallback(() => playSafe(SOUNDS.wordReveal!), [playSafe]);
+  const playDrumRoll = useCallback(() => playSafe(SOUNDS.drumRoll!), [playSafe]);
+  const playRevealTick = useCallback(() => playSafe(SOUNDS.revealTick!), [playSafe]);
+  const playPodiumReveal = useCallback(() => playSafe(SOUNDS.podiumReveal!), [playSafe]);
 
   // Draw sound with throttling (max once per 100ms)
   const playDraw = useCallback(() => {
     const now = Date.now();
     if (now - lastDrawSoundTime.current >= 100) {
-      playSafe(SOUNDS.draw);
+      playSafe(SOUNDS.draw!);
       lastDrawSoundTime.current = now;
     }
   }, [playSafe]);
