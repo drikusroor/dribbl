@@ -9,6 +9,10 @@ bun install          # Install dependencies
 bun dev              # Start development server with hot reload
 bun start            # Production server (NODE_ENV=production)
 bun run build.ts     # Build frontend (outputs to dist/)
+bun run lint         # Run Biome.js linter
+bun run lint:fix     # Auto-fix lint issues
+bun run lint:unsafe  # Run Biome.js linter with unsafe fixes
+bun run check-types  # Run type checking with TypeScript (tsc)
 ```
 
 Docker: `docker-compose up --build`
