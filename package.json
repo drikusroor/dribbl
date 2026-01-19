@@ -1,26 +1,30 @@
 {
-  "name": "bun-react-template",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "check-types": "tsc --target esnext --noEmit",
-    "dev": "bun --hot src/index.ts",
-    "start": "NODE_ENV=production bun src/index.ts",
-    "build": "bun run build.ts"
-  },
-  "dependencies": {
-    "bun-plugin-tailwind": "^0.1.2",
-    "express": "^5.2.1",
-    "lucide-react": "^0.562.0",
-    "react": "^19",
-    "react-dom": "^19",
-    "socket.io": "^4.8.3",
-    "tailwindcss": "^4.1.11"
-  },
-  "devDependencies": {
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@types/bun": "latest"
-  }
+	"name": "bun-react-template",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "bun run build.ts",
+		"check-types": "tsc --target esnext --noEmit",
+		"dev": "bun --hot src/index.ts",
+		"lint": "biome check",
+		"lint:fix": "biome check --fix",
+		"lint:unsafe": "biome check --fix --unsafe",
+		"start": "NODE_ENV=production bun src/index.ts"
+	},
+	"dependencies": {
+		"bun-plugin-tailwind": "^0.1.2",
+		"express": "^5.2.1",
+		"lucide-react": "^0.562.0",
+		"react": "^19",
+		"react-dom": "^19",
+		"socket.io": "^4.8.3",
+		"tailwindcss": "^4.1.11"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.11",
+		"@types/bun": "latest",
+		"@types/react": "^19",
+		"@types/react-dom": "^19"
+	}
 }
