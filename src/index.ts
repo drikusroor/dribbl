@@ -75,7 +75,9 @@ function getGameState(game: Game) {
     roundNumber: game.roundNumber,
     totalRounds: game.totalRounds,
     timeLeft: game.timeLeft,
-    started: game.started
+    started: game.started,
+    roundTime: game.roundTime,
+    customWords: game.customWords
   };
 }
 
@@ -567,6 +569,23 @@ function handleMessage(ws: ServerWebSocket<WebSocketData>, message: string) {
 
         broadcast(gameId, 'gameStarted', getGameState(game));
         startNewRound(game);
+        break;
+      }
+
+      case 'updateSettings': {
+        const { gameId, totalRounds, roundTime, customWords } = data;
+        const game = games.get(gameId);
+        if (!game || game.started) return;
+
+        if (totalRounds !== undefined) game.totalRounds = totalRounds;
+        if (roundTime !== undefined) game.roundTime = roundTime;
+        if (customWords !== undefined) game.customWords = customWords;
+
+        broadcast(gameId, 'settingsUpdated', {
+          totalRounds: game.totalRounds,
+          roundTime: game.roundTime,
+          customWords: game.customWords
+        });
         break;
       }
 

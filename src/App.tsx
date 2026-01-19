@@ -157,6 +157,12 @@ export function App() {
               setSocketId(myId);
               socketIdRef.current = myId;
             }
+            // Sync settings from server
+            if (game.totalRounds !== undefined) setTotalRounds(game.totalRounds);
+            if (game.roundTime !== undefined) setRoundTime(game.roundTime);
+            if (game.customWords !== undefined) {
+              setCustomWords(game.customWords.join(', '));
+            }
             setScreen('lobby');
             break;
           }
@@ -169,6 +175,20 @@ export function App() {
               setSocketId(myId);
               socketIdRef.current = myId;
             }
+            // Sync settings from server for new joiners
+            if (game.totalRounds !== undefined) setTotalRounds(game.totalRounds);
+            if (game.roundTime !== undefined) setRoundTime(game.roundTime);
+            if (game.customWords !== undefined) {
+              setCustomWords(game.customWords.join(', '));
+            }
+            break;
+          }
+
+          case 'settingsUpdated': {
+            const { totalRounds, roundTime, customWords } = data;
+            setTotalRounds(totalRounds);
+            setRoundTime(roundTime);
+            setCustomWords(customWords?.join(', ') || '');
             break;
           }
 
@@ -412,10 +432,33 @@ export function App() {
 
   const startGame = () => {
     if (!socket) return;
-    const customWordsList = customWords.trim() 
+    const customWordsList = customWords.trim()
       ? customWords.split(/[,\n]+/).map(w => w.trim()).filter(w => w.length > 0)
       : [];
     emit('startGame', { gameId: currentGameId, totalRounds, roundTime, customWords: customWordsList });
+  };
+
+  const emitSettingsUpdate = (settings: { totalRounds?: number; roundTime?: number; customWords?: string[] }) => {
+    if (!socket || !currentGameId) return;
+    emit('updateSettings', { gameId: currentGameId, ...settings });
+  };
+
+  const handleTotalRoundsChange = (value: number) => {
+    setTotalRounds(value);
+    emitSettingsUpdate({ totalRounds: value });
+  };
+
+  const handleRoundTimeChange = (value: number) => {
+    setRoundTime(value);
+    emitSettingsUpdate({ roundTime: value });
+  };
+
+  const handleCustomWordsChange = (value: string) => {
+    setCustomWords(value);
+    const wordsList = value.trim()
+      ? value.split(/[,\n]+/).map(w => w.trim()).filter(w => w.length > 0)
+      : [];
+    emitSettingsUpdate({ customWords: wordsList });
   };
 
   const clearCanvas = () => {
@@ -574,11 +617,11 @@ export function App() {
           currentGameId={currentGameId}
           players={players}
           totalRounds={totalRounds}
-          setTotalRounds={setTotalRounds}
+          setTotalRounds={handleTotalRoundsChange}
           roundTime={roundTime}
-          setRoundTime={setRoundTime}
+          setRoundTime={handleRoundTimeChange}
           customWords={customWords}
-          setCustomWords={setCustomWords}
+          setCustomWords={handleCustomWordsChange}
           startGame={startGame}
           leaveLobby={leaveLobby}
         />
